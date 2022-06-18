@@ -29,6 +29,7 @@ dependencies {
     implementation("pw.chew", "jda-chewtils", "2.0-SNAPSHOT")
     implementation("org.json", "json", "20211205")
     implementation("ch.qos.logback", "logback-classic", "1.2.11")
+    implementation("org.mapdb", "mapdb", "3.0.8")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.1")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.8.1")

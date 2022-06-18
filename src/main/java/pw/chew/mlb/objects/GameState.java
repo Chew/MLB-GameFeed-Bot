@@ -11,7 +11,7 @@ import java.util.Objects;
 public record GameState(JSONObject gameData) {
     public GameState(String gamePk) {
         // Do an initial request to get the game state
-        this(new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1.1/game/:id/feed/live?language=en&fields=gameData,status,detailedState,abstractGameState,liveData,plays,allPlays,result,description,awayScore,homeScore,event,about,isComplete,count,balls,strikes,outs,playEvents,details,description,event,eventType,hitData,launchSpeed,launchAngle,totalDistance,trajectory,hardness,isPitch,atBatIndex,linescore,currentInning,currentInningOrdinal,inningState,linescore,teams,home,name,clubName,runs,away,runs"
+        this(new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1.1/game/:id/feed/live?language=en&fields=gameData,status,detailedState,abstractGameState,liveData,plays,allPlays,result,description,awayScore,homeScore,event,about,isComplete,count,balls,strikes,outs,playEvents,details,description,event,eventType,hitData,launchSpeed,launchAngle,totalDistance,trajectory,hardness,isPitch,atBatIndex,linescore,currentInning,currentInningOrdinal,inningState,linescore,teams,home,name,clubName,runs,away,runs,innings,num,home,runs,away,runs,teams,home,runs,hits,errors,leftOnBase,away,runs,hits,errors,leftOnBase"
             .replace(":id", gamePk))));
     }
 
@@ -58,6 +58,10 @@ public record GameState(JSONObject gameData) {
     }
 
     public String currentPlayDescription() {
+        if (currentPlay() == null) {
+            return "";
+        }
+
         return currentPlay().getJSONObject("result").getString("description");
     }
 
@@ -81,6 +85,11 @@ public record GameState(JSONObject gameData) {
 
             JSONObject hitData = event.getJSONObject("hitData");
 
+            // If there's no launchSpeed, launchAngle, or totalDistance for the hitData, return null
+            if (!hitData.has("launchSpeed") || !hitData.has("launchAngle") || !hitData.has("totalDistance")) {
+                return null;
+            }
+
             return String.format("Ball left the bat at a speed of %s mph at a %s° angle, and travelled %s feet.",
                 hitData.getFloat("launchSpeed"),
                 hitData.getFloat("launchAngle"),
@@ -97,7 +106,7 @@ public record GameState(JSONObject gameData) {
             return -1;
         }
 
-        return currentPlay.getJSONObject("about").getInt("atBatIndex") - 1;
+        return currentPlay.getJSONObject("about").getInt("atBatIndex");
     }
 
     public int awayScore() {
@@ -120,9 +129,20 @@ public record GameState(JSONObject gameData) {
 
                 boolean isPitch = event.getBoolean("isPitch");
 
-                if (!isPitch) {
-                    advisories.add(event.getJSONObject("details").getString("description"));
+                if (isPitch) {
+                    continue;
                 }
+
+                JSONObject details = event.getJSONObject("details");
+
+                if (!details.has("event") || !details.has("eventType")) {
+                    continue;
+                }
+
+                String eventName = details.getString("event");
+                String eventDescription = details.getString("description");
+
+                advisories.add(String.format("%s ≠ %s", eventName, eventDescription));
             }
         }
 

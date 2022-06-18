@@ -10,7 +10,9 @@ import net.dv8tion.jda.api.entities.Activity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pw.chew.chewbotcca.util.RestClient;
+import pw.chew.mlb.commands.ShutdownCommand;
 import pw.chew.mlb.commands.StartGameCommand;
+import pw.chew.mlb.listeners.JDAListeners;
 
 import javax.security.auth.login.LoginException;
 import java.io.FileInputStream;
@@ -36,7 +38,7 @@ public class MLBBot {
 
         client.useHelpBuilder(false);
 
-        client.addCommand(new StartGameCommand());
+        client.addCommands(new StartGameCommand(), new ShutdownCommand());
 
 
         // Finalize the command client
@@ -48,6 +50,7 @@ public class MLBBot {
             .setActivity(Activity.playing("Booting..."))
             .addEventListeners(
                 waiter, commandClient // JDA-Chewtils stuff
+                , new JDAListeners()
             ).build();
 
         RestClient.setClient(jda.getHttpClient());
