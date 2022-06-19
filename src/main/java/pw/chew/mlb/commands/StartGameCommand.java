@@ -35,6 +35,13 @@ public class StartGameCommand extends Command {
     protected void execute(CommandEvent event) {
         String gamePk = event.getArgs();
 
+        for (ActiveGame game : GAME_THREADS.keySet()) {
+            if (game.channelId().equals(event.getTextChannel().getId())) {
+                event.reply("This channel is already playing a game: " + game.gamePk() + ". Please wait for it to finish or stop it.");
+                return;
+            }
+        }
+
         // Start a new thread
         ActiveGame activeGame = new ActiveGame(gamePk, event.getTextChannel().getId());
         Thread gameThread = new Thread(() -> runGame(activeGame, gamePk, event.getTextChannel()));
@@ -72,8 +79,7 @@ public class StartGameCommand extends Command {
             // Check for new changes in the description
             if (recentState.atBatIndex() >= 0 && !recentState.currentPlayDescription().equals(currentState.currentPlayDescription())) {
                 EmbedBuilder embed = new EmbedBuilder()
-                    .setDescription(recentState.currentPlayDescription())
-                    ;
+                    .setDescription(recentState.currentPlayDescription());
 
                 // Display Hit info if there is any
                 if (recentState.hitInfo() != null) {
@@ -86,6 +92,9 @@ public class StartGameCommand extends Command {
 
                     embed.setTitle((homeScored ? recentState.homeTeam() : recentState.awayTeam()) + " scored!");
                     embed.addField("Score", recentState.awayTeam() + " " + recentState.awayScore() + " - " + recentState.homeScore() + " " + recentState.homeTeam(), true);
+                    if (canEdit) {
+                        channel.getManager().setTopic(recentState.topicState()).queue();
+                    }
                 }
 
                 // Check if outs changed. Display if it did.
@@ -133,9 +142,10 @@ public class StartGameCommand extends Command {
                         .setDescription(recentState.inningState() + " of the " + recentState.inningOrdinal());
 
                     channel.sendMessageEmbeds(inningEmbed.build()).queue();
-                    if (canEdit) {
-                        channel.getManager().setTopic(recentState.topicState()).queue();
-                    }
+                }
+
+                if (canEdit) {
+                    channel.getManager().setTopic(recentState.topicState()).queue();
                 }
             }
 

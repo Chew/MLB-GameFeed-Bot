@@ -66,15 +66,23 @@ public record GameState(JSONObject gameData) {
     }
 
     public String currentPlayDescription() {
-        if (currentPlay() == null) {
+        JSONObject play = currentPlay();
+
+        if (play == null) {
             return "";
         }
 
-        return currentPlay().getJSONObject("result").getString("description");
+        return play.getJSONObject("result").getString("description");
     }
 
     public int outs() {
-        return currentPlay().getJSONObject("count").getInt("outs");
+        JSONObject play = currentPlay();
+
+        if (play == null) {
+            return 0;
+        }
+
+        return play.getJSONObject("count").getInt("outs");
     }
 
     public String hitInfo() {
