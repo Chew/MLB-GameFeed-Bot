@@ -31,3 +31,7 @@ dependencies {
 tasks.getByName<Test>("test") {
     useJUnitPlatform()
 }
+
+application {
+    mainClass.set("pw.chew.mlb.MLBBot")
+}
