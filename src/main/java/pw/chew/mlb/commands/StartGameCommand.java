@@ -19,6 +19,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public class StartGameCommand extends Command {
     private static final Logger logger = LoggerFactory.getLogger(StartGameCommand.class);
@@ -115,7 +116,7 @@ public class StartGameCommand extends Command {
                 }
 
                 // Send result
-                channel.sendMessageEmbeds(embed.build()).queue();
+                channel.sendMessageEmbeds(embed.build()).queueAfter(5, TimeUnit.SECONDS);
             }
 
             // Check for new advisories
@@ -142,10 +143,10 @@ public class StartGameCommand extends Command {
                         .setDescription(recentState.inningState() + " of the " + recentState.inningOrdinal());
 
                     channel.sendMessageEmbeds(inningEmbed.build()).queue();
-                }
 
-                if (canEdit) {
-                    channel.getManager().setTopic(recentState.topicState()).queue();
+                    if (canEdit) {
+                        channel.getManager().setTopic(recentState.topicState()).queue();
+                    }
                 }
             }
 
