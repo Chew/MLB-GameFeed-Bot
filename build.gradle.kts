@@ -7,14 +7,6 @@ version = "1.0-SNAPSHOT"
 
 repositories {
     maven {
-        url = uri("https://jenkins.chew.pw/plugin/repository/everything/")
-        content {
-            includeGroup("me.memerator.api")
-            includeGroup("pro.chew.api")
-        }
-    }
-
-    maven {
         url = uri("https://m2.chew.pro/snapshots/")
         content {
             includeGroup("pw.chew")

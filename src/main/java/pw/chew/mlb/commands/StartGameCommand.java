@@ -4,8 +4,10 @@ import com.jagrosh.jdautilities.command.Command;
 import com.jagrosh.jdautilities.command.CommandEvent;
 import com.jagrosh.jdautilities.commons.utils.TableBuilder;
 import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.TextChannel;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import net.dv8tion.jda.api.utils.TimeFormat;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -14,7 +16,6 @@ import pw.chew.mlb.objects.ActiveGame;
 import pw.chew.mlb.objects.GameState;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,7 +53,12 @@ public class StartGameCommand extends Command {
         GameState currentState = new GameState(gamePk);
         List<String> postedAdvisories = currentState.gameAdvisories();
 
-        channel.sendMessage("Starting game with gamePk: " + gamePk).queue();
+        channel.sendMessage("Starting game with gamePk: " + gamePk + "\n" +
+            currentState.awayTeam() + " @ " + currentState.homeTeam() + " at " +
+            TimeFormat.DATE_TIME_SHORT.format(currentState.officialDate())
+        ).queue();
+
+        boolean canEdit = channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_CHANNEL);
 
         // Start the bStats tracking thread
         while (!currentState.gameState().equals("Final")) {
@@ -63,11 +69,13 @@ public class StartGameCommand extends Command {
                 break;
             }
 
+            // Check for new changes in the description
             if (recentState.atBatIndex() >= 0 && !recentState.currentPlayDescription().equals(currentState.currentPlayDescription())) {
                 EmbedBuilder embed = new EmbedBuilder()
                     .setDescription(recentState.currentPlayDescription())
                     ;
 
+                // Display Hit info if there is any
                 if (recentState.hitInfo() != null) {
                     embed.addField("Hit Info", recentState.hitInfo(), false);
                 }
@@ -80,6 +88,7 @@ public class StartGameCommand extends Command {
                     embed.addField("Score", recentState.awayTeam() + " " + recentState.awayScore() + " - " + recentState.homeScore() + " " + recentState.homeTeam(), true);
                 }
 
+                // Check if outs changed. Display if it did.
                 if (recentState.outs() != currentState.outs() && recentState.outs() > 0) {
                     int oldOuts = recentState.outs() - currentState.outs();
                     if (oldOuts < 0) {
@@ -90,9 +99,13 @@ public class StartGameCommand extends Command {
 
                     if (recentState.outs() == 3) {
                         embed.addField("Score", recentState.awayTeam() + " " + recentState.awayScore() + " - " + recentState.homeScore() + " " + recentState.homeTeam(), true);
+                        if (canEdit) {
+                            channel.getManager().setTopic(recentState.topicState()).queue();
+                        }
                     }
                 }
 
+                // Send result
                 channel.sendMessageEmbeds(embed.build()).queue();
             }
 
@@ -120,6 +133,9 @@ public class StartGameCommand extends Command {
                         .setDescription(recentState.inningState() + " of the " + recentState.inningOrdinal());
 
                     channel.sendMessageEmbeds(inningEmbed.build()).queue();
+                    if (canEdit) {
+                        channel.getManager().setTopic(recentState.topicState()).queue();
+                    }
                 }
             }
 
@@ -183,25 +199,15 @@ public class StartGameCommand extends Command {
         JSONObject homeTotals = currentState.lineScore().getJSONObject("teams").getJSONObject("home");
         JSONObject awayTotals = currentState.lineScore().getJSONObject("teams").getJSONObject("away");
 
-        tableData[totalInnings+1] = new String[] {
-            String.valueOf(awayTotals.getInt("runs")),
-            String.valueOf(homeTotals.getInt("runs"))
-        };
+        int index = totalInnings + 1;
+        for (String item : new String[]{"runs", "hits", "errors", "leftOnBase"}) {
+            tableData[index] = new String[] {
+                String.valueOf(awayTotals.getInt(item)),
+                String.valueOf(homeTotals.getInt(item))
+            };
 
-        tableData[totalInnings+2] = new String[] {
-            String.valueOf(awayTotals.getInt("hits")),
-            String.valueOf(homeTotals.getInt("hits"))
-        };
-
-        tableData[totalInnings+3] = new String[] {
-            String.valueOf(awayTotals.getInt("errors")),
-            String.valueOf(homeTotals.getInt("errors"))
-        };
-
-        tableData[totalInnings+4] = new String[] {
-            String.valueOf(awayTotals.getInt("leftOnBase")),
-            String.valueOf(homeTotals.getInt("leftOnBase"))
-        };
+            index++;
+        }
 
         // Flip the rows and columns in the tableData matrix
         String[][] flippedTableData = new String[tableData[0].length][tableData.length];
@@ -211,19 +217,19 @@ public class StartGameCommand extends Command {
             }
         }
 
+        // Set values
         tableBuilder.setValues(flippedTableData);
         tableBuilder.setBorders(TableBuilder.Borders.HEADER_PLAIN);
         tableBuilder.codeblock(true);
-
-        // Print out the matrix to the console
-        for (String[] row : flippedTableData) {
-            System.out.println(Arrays.toString(row));
-        }
 
         // Game is over!
         channel.sendMessage("Game Over!\n**Final Scorecard**" + tableBuilder.build())
             .setActionRow(Button.link("https://mlb.chew.pw/game/" + gamePk, "View Game"))
             .queue();
+
+        if (canEdit) {
+            channel.getManager().setTopic(currentState.topicState()).queue();
+        }
 
         // Remove the game thread
         GAME_THREADS.remove(game);
