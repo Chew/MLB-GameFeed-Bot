@@ -10,8 +10,10 @@ import net.dv8tion.jda.api.entities.Activity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pw.chew.chewbotcca.util.RestClient;
+import pw.chew.mlb.commands.ScoreCommand;
 import pw.chew.mlb.commands.ShutdownCommand;
 import pw.chew.mlb.commands.StartGameCommand;
+import pw.chew.mlb.commands.StopGameCommand;
 import pw.chew.mlb.listeners.JDAListeners;
 
 import javax.security.auth.login.LoginException;
@@ -38,8 +40,7 @@ public class MLBBot {
 
         client.useHelpBuilder(false);
 
-        client.addCommands(new StartGameCommand(), new ShutdownCommand());
-
+        client.addCommands(new StartGameCommand(), new ShutdownCommand(), new StopGameCommand(), new ScoreCommand());
 
         // Finalize the command client
         CommandClient commandClient = client.build();
