@@ -1,5 +1,6 @@
 plugins {
     id("java")
+    application
 }
 
 group = "pw.chew"
