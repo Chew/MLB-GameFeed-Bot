@@ -181,7 +181,12 @@ public class GameFeedHandler {
                 }
 
                 // Send result
-                sendMessages(embed.build(), gamePk, 5, TimeUnit.SECONDS);
+                if (recentState.currentBallInPlay()) {
+                    sendMessages(embed.build(), gamePk, 5, TimeUnit.SECONDS);
+                } else {
+                    // Longer delay for non-in-play balls
+                    sendMessages(embed.build(), gamePk, 12, TimeUnit.SECONDS);
+                }
             }
 
             // Check for new advisories
