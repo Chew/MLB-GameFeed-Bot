@@ -23,6 +23,7 @@ import java.util.Properties;
 
 public class MLBBot {
     private static final Logger logger = LoggerFactory.getLogger(MLBBot.class);
+    public static JDA jda;
 
     public static void main(String[] args) throws LoginException, IOException {
         // Load properties into the PropertiesManager
@@ -41,12 +42,15 @@ public class MLBBot {
         client.useHelpBuilder(false);
 
         client.addCommands(new StartGameCommand(), new ShutdownCommand(), new StopGameCommand(), new ScoreCommand());
+        client.addSlashCommands(new StartGameCommand(), new StopGameCommand(), new ScoreCommand());
+
+        //client.forceGuildOnly("148195924567392257");
 
         // Finalize the command client
         CommandClient commandClient = client.build();
 
         // Register JDA
-        JDA jda = JDABuilder.createDefault(prop.getProperty("token"))
+        jda = JDABuilder.createDefault(prop.getProperty("token"))
             .setStatus(OnlineStatus.ONLINE)
             .setActivity(Activity.playing("Booting..."))
             .addEventListeners(

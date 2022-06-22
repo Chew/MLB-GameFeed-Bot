@@ -16,12 +16,16 @@ public record GameState(JSONObject gameData) {
             .replace(":id", gamePk))));
     }
 
+    public boolean failed() {
+        return !gameData().has("gameData");
+    }
+
     public JSONObject lineScore() {
-        return gameData.getJSONObject("liveData").getJSONObject("linescore");
+        return gameData().getJSONObject("liveData").getJSONObject("linescore");
     }
 
     public String gameState() {
-        return gameData.getJSONObject("gameData").getJSONObject("status").getString("abstractGameState");
+        return gameData().getJSONObject("gameData").getJSONObject("status").getString("abstractGameState");
     }
 
     public String homeTeam() {

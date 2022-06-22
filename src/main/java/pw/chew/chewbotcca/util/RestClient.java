@@ -16,26 +16,31 @@
  */
 package pw.chew.chewbotcca.util;
 
-import okhttp3.FormBody;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
-import org.json.JSONObject;
 import org.slf4j.LoggerFactory;
 
 import javax.net.ssl.SSLHandshakeException;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Map;
+import java.time.Duration;
 
 // Off brand RestClient based on the ruby gem of the same name
 public class RestClient {
     private static OkHttpClient client = new OkHttpClient();
     public static final MediaType JSON = MediaType.parse("application/json; charset=utf-8");
     public static final String userAgent = "MLB Bot/1.0 (JDA; +https://mlb.chew.pw/)";
+
+    /// CACHING ///
+    public static final Cache<String, String> requests = Caffeine.newBuilder()
+        .maximumSize(10_000)
+//        .refreshAfterWrite(Duration.ofSeconds(10))
+        .expireAfterWrite(Duration.ofSeconds(10))
+        .build();
 
     /**
      * Sets the OkHttp client to use with this RestClient
@@ -58,102 +63,14 @@ public class RestClient {
             .addHeader("User-Agent", userAgent)
             .build();
 
-        LoggerFactory.getLogger(RestClient.class).debug("Making call to GET " + url);
-        return performRequest(request);
-    }
+        // Only get the URL up to the first '?'
+        String key = url.substring(0, url.indexOf('?'));
 
-    /**
-     * Make an Authenticated GET Request
-     * @param url the url
-     * @param key the auth key
-     * @return a response
-     */
-    public static String get(String url, String key) {
-        Request request = new Request.Builder()
-            .url(url)
-            .addHeader("Authorization", key)
-            .addHeader("User-Agent", userAgent)
-            .get()
-            .build();
-
-        LoggerFactory.getLogger(RestClient.class).debug("Making call to GET " + url);
-        return performRequest(request);
-    }
-
-    /**
-     * Make an Authenticated POST Request
-     * @param url the url
-     * @param args the arguments to pass
-     * @param key the auth key
-     * @return a response
-     */
-    public static String post(String url, HashMap<String, Object> args, String key) {
-        Request request = new Request.Builder()
-            .url(url)
-            .post(bodyFromHash(args))
-            .addHeader("Authorization", key)
-            .addHeader("User-Agent", userAgent)
-            .build();
-
-        LoggerFactory.getLogger(RestClient.class).debug("Making call to POST " + url);
-        return performRequest(request);
-    }
-
-    /**
-     * Make an Unauthenticated POST Request with JSON Body
-     * @param url the url
-     * @param json the json body to send
-     * @return a response
-     */
-    public static String post(String url, JSONObject json) {
-        RequestBody body = RequestBody.create(json.toString(), JSON);
-
-        Request request = new Request.Builder()
-            .url(url)
-            .post(body)
-            .addHeader("User-Agent", userAgent)
-            .build();
-
-        LoggerFactory.getLogger(RestClient.class).debug("Making call to POST " + url);
-        return performRequest(request);
-    }
-
-    /**
-     * Make an Authenticated POST Request with JSON Body
-     * @param url the url
-     * @param key the auth key
-     * @param json the json body to send
-     * @return a response
-     */
-    public static String post(String url, String key, JSONObject json) {
-        RequestBody body = RequestBody.create(json.toString(), JSON);
-
-        Request request = new Request.Builder()
-            .url(url)
-            .post(body)
-            .addHeader("Authorization", key)
-            .addHeader("User-Agent", userAgent)
-            .build();
-
-        LoggerFactory.getLogger(RestClient.class).debug("Making call to POST " + url);
-        return performRequest(request);
-    }
-
-    /**
-     * Make an Authenticated DELETE Request
-     * @param url the url
-     * @param key the auth key
-     * @return a response
-     */
-    public static String delete(String url, String key) {
-        Request request = new Request.Builder()
-            .url(url)
-            .delete()
-            .addHeader("Authorization", key)
-            .addHeader("User-Agent", userAgent)
-            .build();
-
-        LoggerFactory.getLogger(RestClient.class).debug("Making call to DELETE " + url);
+        LoggerFactory.getLogger(RestClient.class).debug("Making call to GET " + key);
+        if (requests.getIfPresent(url) != null) {
+            LoggerFactory.getLogger(RestClient.class).debug("Received response from cache for " + key);
+            return requests.getIfPresent(url);
+        }
         return performRequest(request);
     }
 
@@ -171,24 +88,17 @@ public class RestClient {
             } else {
                 body = responseBody.string();
             }
-            //LoggerFactory.getLogger(RestClient.class).debug("Response is " + body);
+            LoggerFactory.getLogger(RestClient.class).debug("Received uncached response");
+            requests.put(request.url().toString(), body);
             return body;
         } catch (SSLHandshakeException e) {
             LoggerFactory.getLogger(RestClient.class).warn("Call to " + request.url() + " failed with SSLHandshakeException!");
+            e.printStackTrace();
             return "{error: 'SSLHandshakeException'}";
         } catch (IOException e) {
             LoggerFactory.getLogger(RestClient.class).warn("Call to " + request.url() + " failed with IOException!");
+            e.printStackTrace();
             return "{error: 'IOException'}";
         }
-    }
-
-    public static RequestBody bodyFromHash(HashMap<String, Object> args) {
-        FormBody.Builder bodyArgs = new FormBody.Builder();
-        if (args == null)
-            return bodyArgs.build();
-        for(Map.Entry<String, Object> entry : args.entrySet()) {
-            bodyArgs.add(entry.getKey(), String.valueOf(entry.getValue()));
-        }
-        return bodyArgs.build();
     }
 }

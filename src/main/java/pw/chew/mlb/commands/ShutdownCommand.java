@@ -13,8 +13,6 @@ public class ShutdownCommand extends Command {
 
     @Override
     protected void execute(CommandEvent event) {
-        event.getChannel().sendMessage("Bye bye!").queue(m -> {
-            event.getJDA().shutdown();
-        });
+        event.getChannel().sendMessage("Bye bye!").queue(m -> event.getJDA().shutdown());
     }
 }

@@ -1,36 +1,45 @@
 package pw.chew.mlb.commands;
 
-import com.jagrosh.jdautilities.command.Command;
 import com.jagrosh.jdautilities.command.CommandEvent;
-import pw.chew.mlb.objects.ActiveGame;
+import com.jagrosh.jdautilities.command.SlashCommand;
+import com.jagrosh.jdautilities.command.SlashCommandEvent;
+import pw.chew.mlb.listeners.GameFeedHandler;
 import pw.chew.mlb.objects.GameState;
 
-import static pw.chew.mlb.commands.StartGameCommand.GAME_THREADS;
-
-public class ScoreCommand extends Command {
+public class ScoreCommand extends SlashCommand {
     public ScoreCommand() {
         this.name = "score";
         this.help = "Shows the score of the current game";
     }
 
     @Override
+    protected void execute(SlashCommandEvent event) {
+        String currentGame = GameFeedHandler.currentGame(event.getTextChannel());
+        if (currentGame == null) {
+            event.reply("No active game in this channel, please start a game first.").queue();
+        } else {
+            event.reply(buildScore(currentGame)).setEphemeral(true).queue();
+        }
+    }
+
+    @Override
     protected void execute(CommandEvent event) {
-        for (ActiveGame game : GAME_THREADS.keySet()) {
-            if (!game.channelId().equals(event.getTextChannel().getId())) {
-                continue;
-            }
+        String currentGame = GameFeedHandler.currentGame(event.getTextChannel());
+        if (currentGame == null) {
+            event.replyWarning("No active game in this channel, please start a game first.");
+        } else {
+            event.reply(buildScore(currentGame));
+        }
+    }
 
-            GameState state = new GameState(game.gamePk());
+    public String buildScore(String gamePk) {
+        GameState state = new GameState(gamePk);
 
-            event.getChannel().sendMessage(String.format("""
+        return String.format("""
                     Score: %s %s - %s %s
                     Inning: %s %s, %s out(s)
                     """,
-                state.awayTeam(), state.awayScore(), state.homeScore(), state.homeTeam(),
-                state.inningState(), state.inningOrdinal(), state.outs())).queue();
-            return;
-        }
-
-        event.replyWarning("No active game in this channel, please start a game first.");
+            state.awayTeam(), state.awayScore(), state.homeScore(), state.homeTeam(),
+            state.inningState(), state.inningOrdinal(), state.outs());
     }
 }
