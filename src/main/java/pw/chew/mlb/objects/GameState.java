@@ -141,6 +141,11 @@ public record GameState(JSONObject gameData) {
         for (int i = 0; i < events.length(); i++) {
             JSONObject playEvent = events.getJSONObject(i);
 
+            // Some pitches don't have isInPlay
+            if (!playEvent.getJSONObject("details").has("isInPlay")) {
+                continue;
+            }
+
             if (playEvent.getJSONObject("details").getBoolean("isInPlay")) {
                 return true;
             }
