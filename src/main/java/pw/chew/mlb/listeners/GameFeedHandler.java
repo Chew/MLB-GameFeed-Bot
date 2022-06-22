@@ -150,6 +150,8 @@ public class GameFeedHandler {
 
             // Check for new changes in the description
             if (recentState.atBatIndex() >= 0 && !recentState.currentPlayDescription().equals(currentState.currentPlayDescription())) {
+                logger.debug("New play description for gamePk " + gamePk + ": " + recentState.currentPlayDescription());
+
                 EmbedBuilder embed = new EmbedBuilder()
                     .setDescription("||" + recentState.currentPlayDescription() + "||");
 
@@ -181,13 +183,10 @@ public class GameFeedHandler {
                 }
 
                 // Send result
-                // TODO: Fix this somehow
                 if (recentState.currentBallInPlay()) {
-                    embed.addField("Ball In Play", "Yeah", true);
                     sendMessages(embed.build(), gamePk, 9, TimeUnit.SECONDS);
                 } else {
                     // Longer delay for non-in-play balls
-                    embed.addField("Ball In Play", "Nah", true);
                     sendMessages(embed.build(), gamePk, 15, TimeUnit.SECONDS);
                 }
             }
