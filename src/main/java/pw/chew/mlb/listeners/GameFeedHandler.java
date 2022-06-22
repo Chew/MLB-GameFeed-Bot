@@ -181,8 +181,9 @@ public class GameFeedHandler {
                 }
 
                 // Send result
+                // TODO: Fix this somehow
                 if (recentState.currentBallInPlay()) {
-                    sendMessages(embed.build(), gamePk, 5, TimeUnit.SECONDS);
+                    sendMessages(embed.build(), gamePk, 9, TimeUnit.SECONDS);
                 } else {
                     // Longer delay for non-in-play balls
                     sendMessages(embed.build(), gamePk, 12, TimeUnit.SECONDS);
