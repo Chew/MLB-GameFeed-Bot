@@ -151,7 +151,7 @@ public class GameFeedHandler {
             // Check for new changes in the description
             if (recentState.atBatIndex() >= 0 && !recentState.currentPlayDescription().equals(currentState.currentPlayDescription())) {
                 EmbedBuilder embed = new EmbedBuilder()
-                    .setDescription(recentState.currentPlayDescription());
+                    .setDescription("||" + recentState.currentPlayDescription() + "||");
 
                 // Display Hit info if there is any. This only shows for balls that are in-play.
                 if (recentState.hitInfo() != null) {
