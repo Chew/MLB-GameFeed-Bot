@@ -7,10 +7,12 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.entities.Activity;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pw.chew.chewbotcca.util.RestClient;
 import pw.chew.mlb.commands.ScoreCommand;
+import pw.chew.mlb.commands.SetInfoCommand;
 import pw.chew.mlb.commands.ShutdownCommand;
 import pw.chew.mlb.commands.StartGameCommand;
 import pw.chew.mlb.commands.StopGameCommand;
@@ -19,11 +21,14 @@ import pw.chew.mlb.listeners.JDAListeners;
 import javax.security.auth.login.LoginException;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Properties;
 
 public class MLBBot {
     private static final Logger logger = LoggerFactory.getLogger(MLBBot.class);
     public static JDA jda;
+    public static final List<JSONObject> TEAMS = new ArrayList<>();
 
     public static void main(String[] args) throws LoginException, IOException {
         // Load properties into the PropertiesManager
@@ -42,7 +47,7 @@ public class MLBBot {
         client.useHelpBuilder(false);
 
         client.addCommands(new StartGameCommand(), new ShutdownCommand(), new StopGameCommand(), new ScoreCommand());
-        client.addSlashCommands(new StartGameCommand(), new StopGameCommand(), new ScoreCommand());
+        client.addSlashCommands(new StartGameCommand(), new StopGameCommand(), new ScoreCommand(), new SetInfoCommand());
 
         //client.forceGuildOnly("148195924567392257");
 
@@ -59,5 +64,12 @@ public class MLBBot {
             ).build();
 
         RestClient.setClient(jda.getHttpClient());
+
+        // Load teams
+        JSONObject teams = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/teams?sportIds=1&season=2022"));
+
+        for (int i = 0; i < teams.getJSONArray("teams").length(); i++) {
+            TEAMS.add(teams.getJSONArray("teams").getJSONObject(i));
+        }
     }
 }
