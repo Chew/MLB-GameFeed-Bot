@@ -110,13 +110,30 @@ public class SetInfoCommand extends SlashCommand {
 
                 JSONObject teamSchedule = new JSONObject(RestClient.get(String.format("https://statsapi.mlb.com/api/v1/teams/%s?season=2022&hydrate=nextSchedule", teamId)));
 
-                JSONObject nextGame = teamSchedule.getJSONArray("teams")
+                JSONObject nextGame = null;
+
+                JSONArray upcomingGames = teamSchedule.getJSONArray("teams")
                     .getJSONObject(0)
                     .getJSONObject("nextGameSchedule")
-                    .getJSONArray("dates")
-                    .getJSONObject(0)
-                    .getJSONArray("games")
-                    .getJSONObject(0);
+                    .getJSONArray("dates");
+
+                for (int i = 0; i < upcomingGames.length(); i++) {
+                    JSONArray games = upcomingGames.getJSONObject(i).getJSONArray("games");
+                    for (int j = 0; j < games.length(); j++) {
+                        JSONObject game = games.getJSONObject(j);
+                        if (game.getJSONObject("status").getString("abstractGameState").equals("Final")) continue;
+                        if (nextGame != null) continue;
+
+                        nextGame = game;
+
+                        break;
+                    }
+                }
+
+                if (nextGame == null) {
+                    event.reply("Could not find a future game for " + team).setEphemeral(true).queue();
+                    return;
+                }
 
                 int away = nextGame.getJSONObject("teams").getJSONObject("away").getJSONObject("team").getInt("id");
                 int home = nextGame.getJSONObject("teams").getJSONObject("home").getJSONObject("team").getInt("id");
