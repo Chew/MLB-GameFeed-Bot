@@ -153,7 +153,7 @@ public class GameFeedHandler {
                 logger.debug("New play description for gamePk " + gamePk + ": " + recentState.currentPlayDescription());
 
                 EmbedBuilder embed = new EmbedBuilder()
-                    .setDescription("||" + recentState.currentPlayDescription() + "||");
+                    .setDescription(recentState.currentPlayDescription());
 
                 // Display Hit info if there is any. This only shows for balls that are in-play.
                 if (recentState.hitInfo() != null) {
@@ -187,7 +187,7 @@ public class GameFeedHandler {
                     sendMessages(embed.build(), gamePk, 9, TimeUnit.SECONDS);
                 } else {
                     // Longer delay for non-in-play balls
-                    sendMessages(embed.build(), gamePk, 15, TimeUnit.SECONDS);
+                    sendMessages(embed.build(), gamePk, 18, TimeUnit.SECONDS);
                 }
             }
 
