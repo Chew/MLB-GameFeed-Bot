@@ -152,6 +152,9 @@ public class GameFeedHandler {
             if (recentState.atBatIndex() >= 0 && !recentState.currentPlayDescription().equals(currentState.currentPlayDescription())) {
                 logger.debug("New play description for gamePk " + gamePk + ": " + recentState.currentPlayDescription());
 
+                boolean scoringPlay = recentState.homeScore() != currentState.homeScore() || recentState.awayScore() != currentState.awayScore();
+                boolean hasOut = recentState.outs() != currentState.outs() && recentState.outs() > 0;
+
                 EmbedBuilder embed = new EmbedBuilder()
                     .setDescription(recentState.currentPlayDescription());
 
@@ -161,7 +164,7 @@ public class GameFeedHandler {
                 }
 
                 // Check if score changed
-                if (recentState.homeScore() != currentState.homeScore() || recentState.awayScore() != currentState.awayScore()) {
+                if (scoringPlay) {
                     boolean homeScored = recentState.homeScore() > currentState.homeScore();
 
                     embed.setTitle((homeScored ? recentState.homeTeam() : recentState.awayTeam()) + " scored!");
@@ -169,7 +172,7 @@ public class GameFeedHandler {
                 }
 
                 // Check if outs changed. Display if it did.
-                if (recentState.outs() != currentState.outs() && recentState.outs() > 0) {
+                if (hasOut) {
                     int oldOuts = recentState.outs() - currentState.outs();
                     if (oldOuts < 0) {
                         oldOuts = recentState.outs();
@@ -180,6 +183,16 @@ public class GameFeedHandler {
                     if (recentState.outs() == 3) {
                         embed.addField("Score", recentState.awayTeam() + " " + recentState.awayScore() + " - " + recentState.homeScore() + " " + recentState.homeTeam(), true);
                     }
+                }
+
+                if (scoringPlay) {
+                    embed.setColor(0x427ee6);
+                } else if (hasOut) {
+                    embed.setColor(0xd23d33);
+                } else if (recentState.currentPlayDescription().contains("walks")) {
+                    embed.setColor(0x4fc94f);
+                } else {
+                    embed.setColor(0x979797);
                 }
 
                 // Send result
