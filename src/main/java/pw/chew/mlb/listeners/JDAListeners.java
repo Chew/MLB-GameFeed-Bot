@@ -12,10 +12,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pw.chew.mlb.objects.ActiveGame;
 
+import static pw.chew.mlb.listeners.GameFeedHandler.ACTIVE_GAMES;
+import static pw.chew.mlb.listeners.GameFeedHandler.GAME_THREADS;
+
 public class JDAListeners extends ListenerAdapter {
     private static final DB db = DBMaker.fileDB("games.db").fileMmapEnable().closeOnJvmShutdown().make();
     private static final HTreeMap<String, ActiveGame> gamesMap = db
-        .hashMap("messages", Serializer.STRING, new ActiveGame.EntrySerializer())
+        .hashMap("games", Serializer.STRING, new ActiveGame.EntrySerializer())
         .createOrOpen();
 
     private final Logger logger = LoggerFactory.getLogger(JDAListeners.class);
@@ -24,30 +27,28 @@ public class JDAListeners extends ListenerAdapter {
     public void onShutdown(@NotNull ShutdownEvent event) {
         logger.info("Stopping game threads (will resume on restart)");
 
-//        for (ActiveGame game : GAME_THREADS.keySet()) {
-//            gamesMap.put(game.gamePk(), game);
-//            // Get the thread
-//            Thread gameThread = GAME_THREADS.get(game);
-//            // Stop the thread
-//            gameThread.interrupt();
-//            // Debug log
-//            logger.debug("Stopped game thread for gamePk: " + game.gamePk());
-//        }
+        for (ActiveGame game : ACTIVE_GAMES) {
+            gamesMap.put(game.gamePk(), game);
+            // Debug log
+            logger.debug("Stored game for gamePk: " + game.gamePk());
+        }
+
+        for (Thread thread : GAME_THREADS.values()) {
+            thread.interrupt();
+        }
     }
 
     @Override
     public void onReady(@NotNull ReadyEvent event) {
         logger.info("Resuming game threads");
 
-//        for (ActiveGame game : gamesMap.values()) {
-//            // Start a new thread
-//            Thread gameThread = new Thread(() -> new GameFeedHandler(game.gamePk()/*, game.gamePk(), event.getJDA().getTextChannelById(game.channelId()))*/));
-//            GAME_THREADS.put(game, gameThread);
-//            gameThread.start();
-//            // Remove the game from the map
-//            gamesMap.remove(game.gamePk());
-//            // Debug log
-//            logger.debug("Resumed game thread for gamePk: " + game.gamePk());
-//        }
+        for (ActiveGame game : gamesMap.values()) {
+            // Start the game
+            GameFeedHandler.addGame(game);
+            // Remove the game from the map
+            gamesMap.remove(game.gamePk());
+            // Debug log
+            logger.debug("Resumed game with gamePk: " + game.gamePk());
+        }
     }
 }
