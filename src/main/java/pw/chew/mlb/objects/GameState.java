@@ -12,7 +12,7 @@ import java.util.List;
 public record GameState(JSONObject gameData) {
     public GameState(String gamePk) {
         // Do an initial request to get the game state
-        this(new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1.1/game/:id/feed/live?language=en&fields=gameData,datetime,dateTime,status,detailedState,abstractGameState,liveData,plays,allPlays,result,description,awayScore,homeScore,event,about,isComplete,count,balls,strikes,outs,playEvents,details,isInPlay,description,event,eventType,hitData,launchSpeed,launchAngle,totalDistance,trajectory,hardness,isPitch,atBatIndex,linescore,currentInning,currentInningOrdinal,inningState,linescore,teams,home,name,clubName,runs,away,runs,innings,num,home,runs,away,runs,teams,home,runs,hits,errors,leftOnBase,away,runs,hits,errors,leftOnBase"
+        this(new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1.1/game/:id/feed/live?language=en&fields=gameData,datetime,dateTime,status,detailedState,abstractGameState,liveData,plays,allPlays,result,description,awayScore,homeScore,event,about,isComplete,count,balls,strikes,outs,playEvents,details,isInPlay,isScoringPlay,description,event,eventType,hitData,launchSpeed,launchAngle,totalDistance,trajectory,hardness,isPitch,atBatIndex,linescore,currentInning,currentInningOrdinal,inningState,linescore,teams,home,name,clubName,runs,away,runs,innings,num,home,runs,away,runs,teams,home,runs,hits,errors,leftOnBase,away,runs,hits,errors,leftOnBase"
             .replace(":id", gamePk))));
     }
 
@@ -162,8 +162,8 @@ public record GameState(JSONObject gameData) {
         return lineScore().getJSONObject("teams").getJSONObject("home").getInt("runs");
     }
 
-    public List<String> gameAdvisories() {
-        List<String> advisories = new ArrayList<>();
+    public List<JSONObject> gameAdvisories() {
+        List<JSONObject> advisories = new ArrayList<>();
 
         for (Object playObj : plays()) {
             JSONObject play = (JSONObject) playObj;
@@ -184,10 +184,7 @@ public record GameState(JSONObject gameData) {
                     continue;
                 }
 
-                String eventName = details.getString("event");
-                String eventDescription = details.getString("description");
-
-                advisories.add(String.format("%s ≠ %s", eventName, eventDescription));
+                advisories.add(event);
             }
         }
 

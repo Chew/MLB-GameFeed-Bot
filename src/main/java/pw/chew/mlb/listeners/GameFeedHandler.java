@@ -121,7 +121,7 @@ public class GameFeedHandler {
         }
 
         GameState currentState = new GameState(gamePk);
-        List<String> postedAdvisories = currentState.gameAdvisories();
+        List<JSONObject> postedAdvisories = currentState.gameAdvisories();
 
 //        boolean canEdit = channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_CHANNEL);
 
@@ -205,18 +205,34 @@ public class GameFeedHandler {
             }
 
             // Check for new advisories
-            List<String> newAdvisories = recentState.gameAdvisories();
+            List<JSONObject> newAdvisories = recentState.gameAdvisories();
             if (newAdvisories.size() > postedAdvisories.size()) {
                 int startIndex = postedAdvisories.size();
+                List<MessageEmbed> queuedAdvisories = new ArrayList<>();
                 for (int i = startIndex; i < newAdvisories.size(); i++) {
-                    String[] details = newAdvisories.get(i).split("≠");
+                    JSONObject advisory = newAdvisories.get(i);
+                    JSONObject details = advisory.getJSONObject("details");
+
+                    LoggerFactory.getLogger(GameFeedHandler.class).debug("New advisory: " + advisory);
 
                     EmbedBuilder detailEmbed = new EmbedBuilder()
-                        .setTitle(details[0].trim())
-                        .setDescription(details[1].trim());
+                        .setTitle(details.getString("event"))
+                        .setDescription(details.getString("description"));
 
-                    sendMessages(detailEmbed.build(), gamePk);
+                    // Check if score changed
+                    if (details.has("isScoringPlay") && details.getBoolean("isScoringPlay")) {
+                        int homeScore = details.getInt("homeScore");
+                        int awayScore = details.getInt("awayScore");
+                        boolean homeScored = homeScore > awayScore;
+
+                        detailEmbed.setAuthor((homeScored ? recentState.homeTeam() : recentState.awayTeam()) + " scored!");
+                        detailEmbed.addField("Score", recentState.awayTeam() + " " + details.getInt("awayScore") + " - " + details.getInt("homeScore") + " " + recentState.homeTeam(), true);
+                    }
+
+                    queuedAdvisories.add(detailEmbed.build());
                 }
+
+                sendMessages(queuedAdvisories, gamePk);
             }
 
             // Check if the inning state changed
@@ -333,6 +349,15 @@ public class GameFeedHandler {
             if (game.gamePk().equals(gamePk)) {
                 jda.getTextChannelById(game.channelId())
                     .sendMessageEmbeds(message).queueAfter(delay, unit);
+            }
+        }
+    }
+
+    public static void sendMessages(List<MessageEmbed> embeds, String gamePk) {
+        for (ActiveGame game : ACTIVE_GAMES) {
+            if (game.gamePk().equals(gamePk)) {
+                jda.getTextChannelById(game.channelId())
+                    .sendMessageEmbeds(embeds).queue();
             }
         }
     }
