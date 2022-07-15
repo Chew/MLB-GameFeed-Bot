@@ -16,7 +16,7 @@ public class ScoreCommand extends SlashCommand {
     protected void execute(SlashCommandEvent event) {
         String currentGame = GameFeedHandler.currentGame(event.getTextChannel());
         if (currentGame == null) {
-            event.reply("No active game in this channel, please start a game first.").queue();
+            event.reply("No active game in this channel, please start a game first.").setEphemeral(true).queue();
         } else {
             event.reply(buildScore(currentGame)).setEphemeral(true).queue();
         }

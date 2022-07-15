@@ -43,7 +43,7 @@ public class StartGameCommand extends SlashCommand {
 
         for (ActiveGame game : ACTIVE_GAMES) {
             if (game.channelId().equals(event.getTextChannel().getId())) {
-                event.reply("This channel is already playing a game: " + game.gamePk() + ". Please wait for it to finish or stop it.").queue();
+                event.reply("This channel is already playing a game: " + game.gamePk() + ". Please wait for it to finish, or stop it with `/stopgame`.").queue();
                 return;
             }
         }
