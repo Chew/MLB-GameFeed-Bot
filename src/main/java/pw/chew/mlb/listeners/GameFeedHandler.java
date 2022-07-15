@@ -330,9 +330,6 @@ public class GameFeedHandler {
 
         // Game is over!
         endGame(gamePk, tableBuilder.build());
-
-        // Remove the game thread
-        GAME_THREADS.remove(gamePk);
     }
 
     public static void sendMessages(MessageEmbed message, String gamePk) {
@@ -374,5 +371,8 @@ public class GameFeedHandler {
                 ACTIVE_GAMES.remove(game);
             }
         }
+
+        // Remove the game thread
+        GAME_THREADS.remove(gamePk);
     }
 }
