@@ -22,16 +22,6 @@ public class ScoreCommand extends SlashCommand {
         }
     }
 
-    @Override
-    protected void execute(CommandEvent event) {
-        String currentGame = GameFeedHandler.currentGame(event.getTextChannel());
-        if (currentGame == null) {
-            event.replyWarning("No active game in this channel, please start a game first.");
-        } else {
-            event.reply(buildScore(currentGame));
-        }
-    }
-
     public String buildScore(String gamePk) {
         GameState state = new GameState(gamePk);
 

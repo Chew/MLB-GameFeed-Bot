@@ -45,7 +45,7 @@ public class SetInfoCommand extends SlashCommand {
 
     @Override
     protected void execute(SlashCommandEvent event) {
-        VoiceChannel channel = event.getOption("channel", OptionMapping::getAsVoiceChannel);
+        VoiceChannel channel = event.getOption("channel", OptionMapping::getAsChannel).asVoiceChannel();
         String team = event.getOption("team", OptionMapping::getAsString);
 
         String info = "uh oh";
