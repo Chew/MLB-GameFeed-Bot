@@ -22,6 +22,7 @@ public class AdminCommand extends Command {
         this.help = "Admin commands";
         this.hidden = true;
         this.ownerCommand = true;
+        this.guildOnly = false;
     }
 
     @Override

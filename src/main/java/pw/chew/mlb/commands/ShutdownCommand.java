@@ -7,7 +7,7 @@ public class ShutdownCommand extends Command {
     public ShutdownCommand() {
         this.name = "shutdown";
         this.help = "Shuts down the bot";
-        this.guildOnly = true;
+        this.guildOnly = false;
         this.ownerCommand = true;
     }
 
