@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pw.chew.mlb.commands.StartGameCommand;
 import pw.chew.mlb.objects.ActiveGame;
+import pw.chew.mlb.objects.ChannelConfig;
 import pw.chew.mlb.objects.GameState;
 
 import java.util.ArrayList;
@@ -197,10 +198,10 @@ public class GameFeedHandler {
 
                 // Send result
                 if (recentState.currentBallInPlay()) {
-                    sendMessages(embed.build(), gamePk, 13, TimeUnit.SECONDS);
+                    sendPlay(embed.build(), gamePk, true, scoringPlay);
                 } else {
                     // Longer delay for non-in-play balls
-                    sendMessages(embed.build(), gamePk, 18, TimeUnit.SECONDS);
+                    sendPlay(embed.build(), gamePk, false, scoringPlay);
                 }
             }
 
@@ -232,7 +233,7 @@ public class GameFeedHandler {
                     queuedAdvisories.add(detailEmbed.build());
                 }
 
-                sendMessages(queuedAdvisories, gamePk);
+                sendAdvisory(queuedAdvisories, gamePk);
             }
 
             // Check if the inning state changed
@@ -332,6 +333,23 @@ public class GameFeedHandler {
         endGame(gamePk, tableBuilder.build());
     }
 
+    /**
+     * Sends a game advisory message to enabled channels.
+     *
+     * @param embeds The embeds to send.
+     * @param gamePk The gamePk of the game.
+     */
+    public static void sendAdvisory(List<MessageEmbed> embeds, String gamePk) {
+        for (ActiveGame game : getGames(gamePk)) {
+            ChannelConfig config = ChannelConfig.getConfig(game.channelId());
+
+            if (config.gameAdvisories()) {
+                ((GuildMessageChannel)jda.getGuildChannelById(game.channelId()))
+                    .sendMessageEmbeds(embeds).queue();
+            }
+        }
+    }
+
     public static void sendMessages(MessageEmbed message, String gamePk) {
         for (ActiveGame game : ACTIVE_GAMES) {
             if (game.gamePk().equals(gamePk)) {
@@ -341,21 +359,20 @@ public class GameFeedHandler {
         }
     }
 
-    public static void sendMessages(MessageEmbed message, String gamePk, long delay, TimeUnit unit) {
-        for (ActiveGame game : ACTIVE_GAMES) {
-            if (game.gamePk().equals(gamePk)) {
-                ((GuildMessageChannel)jda.getGuildChannelById(game.channelId()))
-                    .sendMessageEmbeds(message).queueAfter(delay, unit);
-            }
-        }
-    }
 
-    public static void sendMessages(List<MessageEmbed> embeds, String gamePk) {
-        for (ActiveGame game : ACTIVE_GAMES) {
-            if (game.gamePk().equals(gamePk)) {
-                ((GuildMessageChannel)jda.getGuildChannelById(game.channelId()))
-                    .sendMessageEmbeds(embeds).queue();
+    public static void sendPlay(MessageEmbed message, String gamePk, boolean inPlay, boolean isScoringPlay) {
+        for (ActiveGame game : getGames(gamePk)) {
+            ChannelConfig config = ChannelConfig.getConfig(game.channelId());
+
+            // If configured to only show scoring plays, ignore non-scoring plays
+            if (config.onlyScoringPlays() && !isScoringPlay) {
+                continue;
             }
+
+            int delay = inPlay ? config.inPlayDelay() : config.noPlayDelay();
+
+            ((GuildMessageChannel)jda.getGuildChannelById(game.channelId()))
+                .sendMessageEmbeds(message).queueAfter(delay, TimeUnit.SECONDS);
         }
     }
 
@@ -374,5 +391,25 @@ public class GameFeedHandler {
 
         // Remove the game thread
         GAME_THREADS.remove(gamePk);
+    }
+
+    /**
+     * Gets active games for the specified gamePk
+     *
+     * @param gamePk The gamePk to get active games for
+     * @return A list of active games
+     */
+    public static List<ActiveGame> getGames(String gamePk) {
+        List<ActiveGame> games = new ArrayList<>();
+
+        for (ActiveGame game : ACTIVE_GAMES) {
+            if (!game.gamePk().equals(gamePk)) {
+                continue;
+            }
+
+            games.add(game);
+        }
+
+        return games;
     }
 }

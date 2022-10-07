@@ -156,9 +156,9 @@ public class SetInfoCommand extends SlashCommand {
         }
 
         String finalInfo = info;
-        event.getGuild().getVoiceChannelById(channel.getId()).getManager().setName(info).queue(unused -> {
-            event.reply("Set channel name to " + finalInfo).setEphemeral(true).queue();
-        });
+        channel.getManager().setName(info).queue(unused ->
+            event.reply("Set channel name to " + finalInfo).setEphemeral(true).queue()
+        );
     }
 
     @Override

@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pw.chew.chewbotcca.util.RestClient;
 import pw.chew.mlb.commands.AdminCommand;
+import pw.chew.mlb.commands.ConfigCommand;
 import pw.chew.mlb.commands.ScoreCommand;
 import pw.chew.mlb.commands.SetInfoCommand;
 import pw.chew.mlb.commands.ShutdownCommand;
@@ -48,7 +49,7 @@ public class MLBBot {
         client.useHelpBuilder(false);
 
         client.addCommands(new ShutdownCommand(), new AdminCommand());
-        client.addSlashCommands(new StartGameCommand(), new StopGameCommand(), new ScoreCommand(), new SetInfoCommand());
+        client.addSlashCommands(new StartGameCommand(), new StopGameCommand(), new ScoreCommand(), new SetInfoCommand(), new ConfigCommand());
 
         //client.forceGuildOnly("148195924567392257");
 
