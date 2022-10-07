@@ -3,7 +3,7 @@ package pw.chew.mlb.commands;
 import com.jagrosh.jdautilities.command.Command;
 import com.jagrosh.jdautilities.command.CommandEvent;
 import com.jagrosh.jdautilities.menu.Paginator;
-import net.dv8tion.jda.api.entities.GuildChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.exceptions.PermissionException;
 import org.slf4j.LoggerFactory;
 import pw.chew.mlb.MLBBot;

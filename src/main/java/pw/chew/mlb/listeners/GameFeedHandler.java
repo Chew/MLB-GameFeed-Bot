@@ -3,7 +3,7 @@ package pw.chew.mlb.listeners;
 import com.jagrosh.jdautilities.commons.utils.TableBuilder;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
-import net.dv8tion.jda.api.entities.TextChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -81,7 +81,7 @@ public class GameFeedHandler {
      * @param channel The text channel to stop the game from.
      * @return The gamePk if the game was stopped, null if no game was found in the provided text channel.
      */
-    public static String stopGame(TextChannel channel) {
+    public static String stopGame(GuildMessageChannel channel) {
         for (ActiveGame game : ACTIVE_GAMES) {
             if (game.channelId().equals(channel.getId())) {
                 stopGame(game);
@@ -98,7 +98,7 @@ public class GameFeedHandler {
      * @param channel The text channel to get the current game from.
      * @return The current game for the provided text channel, null if no game is currently running in the provided text channel.
      */
-    public static String currentGame(TextChannel channel) {
+    public static String currentGame(GuildMessageChannel channel) {
         for (ActiveGame game : ACTIVE_GAMES) {
             if (game.channelId().equals(channel.getId())) {
                 return game.gamePk();
@@ -335,7 +335,7 @@ public class GameFeedHandler {
     public static void sendMessages(MessageEmbed message, String gamePk) {
         for (ActiveGame game : ACTIVE_GAMES) {
             if (game.gamePk().equals(gamePk)) {
-                jda.getTextChannelById(game.channelId())
+                ((GuildMessageChannel)jda.getGuildChannelById(game.channelId()))
                     .sendMessageEmbeds(message).queue();
             }
         }
@@ -344,7 +344,7 @@ public class GameFeedHandler {
     public static void sendMessages(MessageEmbed message, String gamePk, long delay, TimeUnit unit) {
         for (ActiveGame game : ACTIVE_GAMES) {
             if (game.gamePk().equals(gamePk)) {
-                jda.getTextChannelById(game.channelId())
+                ((GuildMessageChannel)jda.getGuildChannelById(game.channelId()))
                     .sendMessageEmbeds(message).queueAfter(delay, unit);
             }
         }
@@ -353,7 +353,7 @@ public class GameFeedHandler {
     public static void sendMessages(List<MessageEmbed> embeds, String gamePk) {
         for (ActiveGame game : ACTIVE_GAMES) {
             if (game.gamePk().equals(gamePk)) {
-                jda.getTextChannelById(game.channelId())
+                ((GuildMessageChannel)jda.getGuildChannelById(game.channelId()))
                     .sendMessageEmbeds(embeds).queue();
             }
         }
@@ -362,7 +362,7 @@ public class GameFeedHandler {
     public static void endGame(String gamePk, String scorecard) {
         for (ActiveGame game : ACTIVE_GAMES) {
             if (game.gamePk().equals(gamePk)) {
-                jda.getTextChannelById(game.channelId())
+                ((GuildMessageChannel)jda.getGuildChannelById(game.channelId()))
                     .sendMessage("Game Over!\n**Final Scorecard**" + scorecard)
                     .setActionRow(Button.link("https://mlb.chew.pw/game/" + gamePk, "View Game"))
                     .queue();

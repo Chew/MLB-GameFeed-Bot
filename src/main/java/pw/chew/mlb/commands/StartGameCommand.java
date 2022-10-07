@@ -42,14 +42,14 @@ public class StartGameCommand extends SlashCommand {
         String gamePk = event.getOption("game", "0", OptionMapping::getAsString);
 
         for (ActiveGame game : ACTIVE_GAMES) {
-            if (game.channelId().equals(event.getTextChannel().getId())) {
+            if (game.channelId().equals(event.getGuildChannel().getId())) {
                 event.reply("This channel is already playing a game: " + game.gamePk() + ". Please wait for it to finish, or stop it with `/stopgame`.").queue();
                 return;
             }
         }
 
         // Start a new thread
-        ActiveGame activeGame = new ActiveGame(gamePk, event.getTextChannel().getId());
+        ActiveGame activeGame = new ActiveGame(gamePk, event.getGuildChannel().getId());
         GameState currentState = new GameState(gamePk);
 
         event.reply("Starting game with gamePk: " + gamePk + "\n" +

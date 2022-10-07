@@ -15,7 +15,7 @@ public class StopGameCommand extends SlashCommand {
 
     @Override
     protected void execute(SlashCommandEvent event) {
-        String stoppedGame = GameFeedHandler.stopGame(event.getTextChannel());
+        String stoppedGame = GameFeedHandler.stopGame(event.getGuildChannel());
         if (stoppedGame == null) {
             event.reply("No active game in this channel, please start a game first.").queue();
         } else {
@@ -25,7 +25,7 @@ public class StopGameCommand extends SlashCommand {
 
     @Override
     protected void execute(CommandEvent event) {
-        String stoppedGame = GameFeedHandler.stopGame(event.getTextChannel());
+        String stoppedGame = GameFeedHandler.stopGame(event.getGuildChannel());
         if (stoppedGame == null) {
             event.replyWarning("No active game in this channel, please start a game first.");
         } else {
