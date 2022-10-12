@@ -1,6 +1,5 @@
 package pw.chew.mlb.commands;
 
-import com.jagrosh.jdautilities.command.CommandEvent;
 import com.jagrosh.jdautilities.command.SlashCommand;
 import com.jagrosh.jdautilities.command.SlashCommandEvent;
 import pw.chew.mlb.listeners.GameFeedHandler;
@@ -14,7 +13,7 @@ public class ScoreCommand extends SlashCommand {
 
     @Override
     protected void execute(SlashCommandEvent event) {
-        String currentGame = GameFeedHandler.currentGame(event.getTextChannel());
+        String currentGame = GameFeedHandler.currentGame(event.getGuildChannel());
         if (currentGame == null) {
             event.reply("No active game in this channel, please start a game first.").setEphemeral(true).queue();
         } else {
