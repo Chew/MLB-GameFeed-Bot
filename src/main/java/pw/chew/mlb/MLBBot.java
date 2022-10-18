@@ -42,7 +42,7 @@ public class MLBBot {
         CommandClientBuilder client = new CommandClientBuilder();
 
         // Set the client settings
-        client.useDefaultGame();
+        client.setActivity(Activity.competing("the World Series"));
         client.setOwnerId("476488167042580481");
         client.setPrefix("woody!");
 
