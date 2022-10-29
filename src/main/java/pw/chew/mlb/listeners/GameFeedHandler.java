@@ -379,10 +379,12 @@ public class GameFeedHandler {
     public static void endGame(String gamePk, String scorecard) {
         for (ActiveGame game : ACTIVE_GAMES) {
             if (game.gamePk().equals(gamePk)) {
-                ((GuildMessageChannel)jda.getGuildChannelById(game.channelId()))
-                    .sendMessage("Game Over!\n**Final Scorecard**" + scorecard)
-                    .setActionRow(Button.link("https://mlb.chew.pw/game/" + gamePk, "View Game"))
-                    .queue();
+                GuildMessageChannel channel = (GuildMessageChannel) jda.getGuildChannelById(game.channelId());
+                if (channel != null) {
+                    channel.sendMessage("Game Over!\n**Final Scorecard**" + scorecard)
+                        .setActionRow(Button.link("https://mlb.chew.pw/game/" + gamePk, "View Game"))
+                        .queue();
+                }
 
                 // Remove the game from the active games list
                 ACTIVE_GAMES.remove(game);
