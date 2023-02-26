@@ -86,7 +86,14 @@ public class PlanGameCommand extends SlashCommand {
             JSONObject broadcast = (JSONObject) broadcastObj;
             String team = broadcast.getString("homeAway").equals("away") ? awayName : homeName;
             switch (broadcast.getString("type")) {
-                case "TV" -> tv.add("%s - %s".formatted(team, broadcast.getString("name")));
+                case "TV" -> {
+                    if (broadcast.getString("name").contains("Bally Sports")) {
+                        // use call sign
+                        tv.add("%s - %s".formatted(team, broadcast.getString("callSign")));
+                    } else {
+                        tv.add("%s - %s".formatted(team, broadcast.getString("name")));
+                    }
+                }
                 case "FM", "AM" -> radio.add("%s - %s".formatted(team, broadcast.getString("name")));
             }
         }
@@ -105,19 +112,21 @@ public class PlanGameCommand extends SlashCommand {
         }
 
         String response = """
-            Game Time: %s
+            **%s** @ **%s**
+            **Game Time**: %s
+            
+            **Records**
+            %s: %s - %s
+            %s: %s - %s
             
             :tv:
             %s
             :radio:
             %s
             
-            Record:
-            %s: %s - %s
-            %s: %s - %s
-            
             Game Link: https://mlb.chew.pw/game/%s
             """.formatted(
+                awayName, homeName,
             TimeFormat.DATE_TIME_LONG.format(accessor),
             String.join("\n", tv), String.join("\n", radio),
             awayName, awayRecord.getInt("wins"), awayRecord.getInt("losses"),
