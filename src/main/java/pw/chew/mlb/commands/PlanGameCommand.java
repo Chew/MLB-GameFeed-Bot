@@ -126,12 +126,12 @@ public class PlanGameCommand extends SlashCommand {
             
             Game Link: https://mlb.chew.pw/game/%s
             """.formatted(
-                awayName, homeName,
-            TimeFormat.DATE_TIME_LONG.format(accessor),
-            String.join("\n", tv), String.join("\n", radio),
-            awayName, awayRecord.getInt("wins"), awayRecord.getInt("losses"),
-            homeName, homeRecord.getInt("wins"), homeRecord.getInt("losses"),
-            gamePk
+                awayName, homeName, // teams
+            TimeFormat.DATE_TIME_LONG.format(accessor), // game time
+            awayName, awayRecord.getInt("wins"), awayRecord.getInt("losses"), // away record
+            homeName, homeRecord.getInt("wins"), homeRecord.getInt("losses"), // home record
+            String.join("\n", tv), String.join("\n", radio), // tv and radio broadcasts
+            gamePk // game pk
         );
 
         switch (channel.getType()) {
