@@ -54,7 +54,7 @@ public class PlanGameCommand extends SlashCommand {
         String gamePk = event.optString("date", "1");
 
         // get da info
-        JSONObject game = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/schedule?language=en&gamePk=%s&hydrate=broadcasts(all),gameInfo,team&useLatestGames=true&fields=dates,date,games,gameDate,teams,away,team,teamName,name,leagueRecord,wins,losses,pct,home,broadcasts,type,name,homeAway,isNational".formatted(gamePk)))
+        JSONObject game = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/schedule?language=en&gamePk=%s&hydrate=broadcasts(all),gameInfo,team&useLatestGames=true&fields=dates,date,games,gameDate,teams,away,team,teamName,name,leagueRecord,wins,losses,pct,home,broadcasts,type,name,homeAway,isNational,callSign".formatted(gamePk)))
             .getJSONArray("dates")
             .getJSONObject(0)
             .getJSONArray("games")
