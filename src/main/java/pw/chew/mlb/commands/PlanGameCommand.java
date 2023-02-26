@@ -31,7 +31,7 @@ public class PlanGameCommand extends SlashCommand {
         this.help = "Plans a game to be played. Makes a thread in text channels or a post in forum channels.";
 
         this.options = Arrays.asList(
-            new OptionData(OptionType.STRING, "team", "The team to plan for", true)
+            new OptionData(OptionType.STRING, "team", "The team to plan for", false)
                 .setAutoComplete(true),
             new OptionData(OptionType.CHANNEL, "channel", "The channel to plan for", true)
                 .setChannelTypes(ChannelType.TEXT, ChannelType.FORUM),
