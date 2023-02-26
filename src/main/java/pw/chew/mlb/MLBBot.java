@@ -68,7 +68,7 @@ public class MLBBot {
         RestClient.setClient(jda.getHttpClient());
 
         // Load teams
-        JSONObject teams = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/teams?sportIds=1&season=2022"));
+        JSONObject teams = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/teams?sportIds=1&season=2023"));
 
         for (int i = 0; i < teams.getJSONArray("teams").length(); i++) {
             TEAMS.add(teams.getJSONArray("teams").getJSONObject(i));
