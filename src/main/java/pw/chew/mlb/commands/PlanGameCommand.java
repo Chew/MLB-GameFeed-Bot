@@ -18,6 +18,7 @@ import pw.chew.chewbotcca.util.RestClient;
 import pw.chew.mlb.objects.MLBAPIUtil;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
@@ -54,7 +55,7 @@ public class PlanGameCommand extends SlashCommand {
         String gamePk = event.optString("date", "1");
 
         // get da info
-        JSONObject game = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/schedule?language=en&gamePk=%s&hydrate=broadcasts(all),gameInfo,team&useLatestGames=true&fields=dates,date,games,gameDate,teams,away,team,teamName,name,leagueRecord,wins,losses,pct,home,broadcasts,type,name,homeAway,isNational,callSign".formatted(gamePk)))
+        JSONObject game = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/schedule?language=en&gamePk=%s&hydrate=broadcasts(all),gameInfo,team,probablePitcher(all)&useLatestGames=true&fields=dates,date,games,gameDate,teams,away,probablePitcher,fullName,team,teamName,name,leagueRecord,wins,losses,pct,home,broadcasts,type,name,homeAway,isNational,callSign".formatted(gamePk)))
             .getJSONArray("dates")
             .getJSONObject(0)
             .getJSONArray("games")
@@ -64,8 +65,9 @@ public class PlanGameCommand extends SlashCommand {
         TemporalAccessor accessor = DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(game.getString("gameDate"));
         OffsetDateTime dateTime = OffsetDateTime.from(accessor);
 
-        // Convert to Feb 26th
-        String date = dateTime.format(DateTimeFormatter.ofPattern("MMM d"));
+        // Convert to Eastern Time, then to this format: "Feb 26th"
+        ZoneId eastern = ZoneId.of("America/New_York");
+        String date = dateTime.atZoneSameInstant(eastern).format(DateTimeFormatter.ofPattern("MMM d"));
 
         // Teams
         JSONObject home = game.getJSONObject("teams").getJSONObject("home");
@@ -79,10 +81,15 @@ public class PlanGameCommand extends SlashCommand {
 
         String name = "%s @ %s - %s".formatted(awayName, homeName, date);
 
+        // Get probable pitchers
+        JSONObject fallback = new JSONObject().put("fullName", "TBD");
+        String homePitcher = home.optJSONObject("probablePitcher", fallback).getString("fullName");
+        String awayPitcher = away.optJSONObject("probablePitcher", fallback).getString("fullName");
+
         // Handle broadcast stuff
         List<String> tv = new ArrayList<>();
         List<String> radio = new ArrayList<>();
-        for (Object broadcastObj : game.getJSONArray("broadcasts")) {
+        for (Object broadcastObj : game.optJSONArray("broadcasts")) {
             JSONObject broadcast = (JSONObject) broadcastObj;
             String team = broadcast.getString("homeAway").equals("away") ? awayName : homeName;
             switch (broadcast.getString("type")) {
@@ -99,21 +106,20 @@ public class PlanGameCommand extends SlashCommand {
         }
 
         // Go through radio and see if the teamName is twice, if so, merge them
-        for (int i = 0; i < radio.size(); i++) {
-            String radioTeam = radio.get(i).split(" - ")[0];
-            for (int j = 0; j < radio.size(); j++) {
-                if (i == j) continue;
-                String radioTeam2 = radio.get(j).split(" - ")[0];
-                if (radioTeam.equals(radioTeam2)) {
-                    radio.set(i, radio.get(i) + ", " + radio.get(j).split(" - ")[1]);
-                    radio.remove(j);
-                }
-            }
-        }
+        cleanDuplicates(tv);
+        cleanDuplicates(radio);
+
+        // if tv or radio are empty, put "No TV/Radio Broadcasts"
+        if (tv.isEmpty()) tv.add("No TV Broadcasts");
+        if (radio.isEmpty()) radio.add("No Radio Broadcasts");
 
         String response = """
             **%s** @ **%s**
             **Game Time**: %s
+            
+            **Probable Pitchers**
+            %s: %s
+            %s: %s
             
             **Records**
             %s: %s - %s
@@ -128,6 +134,8 @@ public class PlanGameCommand extends SlashCommand {
             """.formatted(
                 awayName, homeName, // teams
             TimeFormat.DATE_TIME_LONG.format(accessor), // game time
+            awayName, awayPitcher, // away pitcher
+            homeName, homePitcher, // home pitcher
             awayName, awayRecord.getInt("wins"), awayRecord.getInt("losses"), // away record
             homeName, homeRecord.getInt("wins"), homeRecord.getInt("losses"), // home record
             String.join("\n", tv), String.join("\n", radio), // tv and radio broadcasts
@@ -142,7 +150,7 @@ public class PlanGameCommand extends SlashCommand {
                             msg.pin().queue();
                         } catch (InsufficientPermissionException ignored) {
                         }
-                        event.reply("Planned game! " + threadChannel.getAsMention()).queue();
+                        event.reply("Planned game! " + threadChannel.getAsMention()).setEphemeral(true).queue();
                     });
                 });
             }
@@ -152,7 +160,7 @@ public class PlanGameCommand extends SlashCommand {
                         forumPost.getMessage().pin().queue();
                     } catch (InsufficientPermissionException ignored) {
                     }
-                    event.reply("Planned game! " + forumPost.getThreadChannel().getAsMention()).queue();
+                    event.reply("Planned game! " + forumPost.getThreadChannel().getAsMention()).setEphemeral(true).queue();
                 });
             }
         }
@@ -179,15 +187,15 @@ public class PlanGameCommand extends SlashCommand {
                 return;
             }
             case "date": {
-                String teamId = event.getOption("team", null, OptionMapping::getAsString);
+                int teamId = event.getOption("team", -1, OptionMapping::getAsInt);
                 String sport = event.getOption("sport", "1", OptionMapping::getAsString);
 
-                if (teamId == null) {
+                if (teamId == -1) {
                     event.replyChoices(new Command.Choice("Please select a team first!", -1)).queue();
                     return;
                 }
 
-                JSONArray games = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/schedule?lang=en&sportId=%S&season=2023&teamId=%S&fields=dates,date,games,gamePk".formatted(sport, teamId)))
+                JSONArray games = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/schedule?lang=en&sportId=%S&season=2023&teamId=%S&fields=dates,date,games,gamePk,teams,away,team,teamName,id&hydrate=team".formatted(sport, teamId)))
                     .getJSONArray("dates");
 
                 List<Command.Choice> choices = new ArrayList<>();
@@ -212,7 +220,15 @@ public class PlanGameCommand extends SlashCommand {
                     JSONArray dayGames = games.getJSONObject(i).getJSONArray("games");
                     for (int j = 0; j < dayGames.length(); j++) {
                         JSONObject game = dayGames.getJSONObject(j);
-                        String name = "%s%s".formatted(date, dayGames.length() > 1 ? " (Game %d)".formatted(j + 1) : "");
+
+                        // find if we're home or away
+                        JSONObject away = game.getJSONObject("teams").getJSONObject("away").getJSONObject("team");
+                        JSONObject home = game.getJSONObject("teams").getJSONObject("home").getJSONObject("team");
+
+                        boolean isAway = away.getInt("id") == teamId;
+                        String opponent = isAway ? home.getString("teamName") : away.getString("teamName");
+
+                        String name = "%s %s - %s%s".formatted(isAway ? "@" : "vs", opponent, date, dayGames.length() > 1 ? " (Game %d)".formatted(j + 1) : "");
                         choices.add(new Command.Choice(name, game.getInt("gamePk")));
                     }
                 }
@@ -229,5 +245,19 @@ public class PlanGameCommand extends SlashCommand {
         }
 
         event.replyChoices().queue();
+    }
+
+    private void cleanDuplicates(List<String> list) {
+        for (int i = 0; i < list.size(); i++) {
+            String radioTeam = list.get(i).split(" - ")[0];
+            for (int j = 0; j < list.size(); j++) {
+                if (i == j) continue;
+                String radioTeam2 = list.get(j).split(" - ")[0];
+                if (radioTeam.equals(radioTeam2)) {
+                    list.set(i, list.get(i) + ", " + list.get(j).split(" - ")[1]);
+                    list.remove(j);
+                }
+            }
+        }
     }
 }
