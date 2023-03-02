@@ -2,6 +2,7 @@ package pw.chew.mlb.commands;
 
 import com.jagrosh.jdautilities.command.Command;
 import com.jagrosh.jdautilities.command.CommandEvent;
+import com.jagrosh.jdautilities.menu.EmbedPaginator;
 import com.jagrosh.jdautilities.menu.Paginator;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.exceptions.PermissionException;
@@ -9,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import pw.chew.mlb.MLBBot;
 import pw.chew.mlb.listeners.GameFeedHandler;
 import pw.chew.mlb.objects.ActiveGame;
+import pw.chew.mlb.objects.ChannelConfig;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,6 +29,37 @@ public class AdminCommand extends Command {
 
     @Override
     protected void execute(CommandEvent event) {
+        String args = event.getArgs();
+
+        if (args.startsWith("games")) {
+            activeGames(event);
+        } else if (args.startsWith("config")) {
+            config(event);
+        }
+    }
+
+    private void config(CommandEvent event) {
+        var config = new EmbedPaginator.Builder()
+            .waitOnSinglePage(false)
+            .setFinalAction(m -> {
+                try {
+                    m.clearReactions().queue();
+                } catch(PermissionException ignored) { }
+            })
+            .setEventWaiter(MLBBot.waiter)
+            .setTimeout(1, TimeUnit.MINUTES)
+            .clearItems();
+
+        for (String key : ConfigCommand.channelsMap.keySet()) {
+            ChannelConfig channelConfig = ConfigCommand.channelsMap.get(key);
+            if (channelConfig == null) continue;
+            config.addItems(ConfigCommand.ConfigGetSubCommand.buildConfigEmbed(channelConfig, key));
+        }
+
+        config.build().display(event.getChannel());
+    }
+
+    public void activeGames(CommandEvent event) {
         var activeGames = new Paginator.Builder().setColumns(1)
             .setItemsPerPage(10)
             .showPageNumbers(true)

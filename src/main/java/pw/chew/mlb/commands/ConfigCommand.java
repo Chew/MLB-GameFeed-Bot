@@ -4,6 +4,7 @@ import com.jagrosh.jdautilities.command.SlashCommand;
 import com.jagrosh.jdautilities.command.SlashCommandEvent;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
@@ -16,7 +17,7 @@ import pw.chew.mlb.objects.ChannelConfig;
 import java.util.Arrays;
 
 public class ConfigCommand extends SlashCommand {
-    private static final DB db = DBMaker.fileDB("channels.db").fileMmapEnable().closeOnJvmShutdown().make();
+    private static final DB db = DBMaker.fileDB("channels.db").fileMmapEnable().closeOnJvmShutdown().checksumHeaderBypass().make();
     public static final HTreeMap<String, ChannelConfig> channelsMap = db
         .hashMap("channels", Serializer.STRING, new ChannelConfig.EntrySerializer())
         .createOrOpen();
@@ -47,16 +48,18 @@ public class ConfigCommand extends SlashCommand {
                 return;
             }
 
-            EmbedBuilder embed = new EmbedBuilder()
-                .setTitle("Configuration for " + event.getChannel().getName())
+            event.replyEmbeds(buildConfigEmbed(config, event.getChannel().getName())).setEphemeral(true).queue();
+        }
+
+        public static MessageEmbed buildConfigEmbed(ChannelConfig config, String channelName) {
+            return new EmbedBuilder()
+                .setTitle("Configuration for " + channelName)
                 .addField("Only Scoring Plays", config.onlyScoringPlays() + "", true)
                 .addField("Game Advisories", config.gameAdvisories() + "", true)
                 .addField("In Play Delay", config.inPlayDelay() + "", true)
                 .addField("No Play (K/BB) Delay", config.noPlayDelay() + "", true)
-                //.addField("Show Score on Out 3", config.showScoreOnOut3() + "", true)
-                ;
-
-            event.replyEmbeds(embed.build()).setEphemeral(true).queue();
+            //.addField("Show Score on Out 3", config.showScoreOnOut3() + "", true)
+                .build();
         }
     }
 
