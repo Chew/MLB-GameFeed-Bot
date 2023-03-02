@@ -18,11 +18,11 @@ repositories {
 }
 
 dependencies {
-    implementation("net.dv8tion", "JDA", "5.0.0-beta.3")
+    implementation("net.dv8tion", "JDA", "5.0.0-beta.5")
     implementation("pw.chew", "jda-chewtils", "2.0-SNAPSHOT")
-    implementation("org.json", "json", "20211205")
-    implementation("ch.qos.logback", "logback-classic", "1.2.11")
-    implementation("org.mapdb", "mapdb", "3.0.8")
+    implementation("org.json", "json", "20230227")
+    implementation("ch.qos.logback", "logback-classic", "1.4.5")
+    implementation("org.mapdb", "mapdb", "3.0.9")
     implementation("com.github.ben-manes.caffeine", "caffeine", "3.1.0")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.1")
