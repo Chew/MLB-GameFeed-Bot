@@ -56,7 +56,7 @@ public class AdminCommand extends Command {
             config.addItems(ConfigCommand.ConfigGetSubCommand.buildConfigEmbed(channelConfig, key));
         }
 
-        config.build().display(event.getChannel());
+        config.setText("There are %s total configs".formatted(ConfigCommand.channelsMap.size())).build().display(event.getChannel());
     }
 
     public void activeGames(CommandEvent event) {
