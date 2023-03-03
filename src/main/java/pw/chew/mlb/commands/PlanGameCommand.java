@@ -89,7 +89,9 @@ public class PlanGameCommand extends SlashCommand {
         // Handle broadcast stuff
         List<String> tv = new ArrayList<>();
         List<String> radio = new ArrayList<>();
-        for (Object broadcastObj : game.optJSONArray("broadcasts")) {
+        JSONArray broadcasts = game.optJSONArray("broadcasts");
+        if (broadcasts == null) broadcasts = new JSONArray();
+        for (Object broadcastObj : broadcasts) {
             JSONObject broadcast = (JSONObject) broadcastObj;
             String team = broadcast.getString("homeAway").equals("away") ? awayName : homeName;
             switch (broadcast.getString("type")) {
