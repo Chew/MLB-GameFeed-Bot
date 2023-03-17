@@ -1,5 +1,7 @@
 # MLB-GameFeed-Bot
 
+Add to your server with [this link](https://canary.discord.com/api/oauth2/authorize?client_id=987144502374436895&permissions=1067024&scope=bot%20applications.commands)!
+
 This bot allows you to view the live play-by-plays for any MLB.com game. This attempts to mimic [gameday](https://mlb.com/gameday)
 
 To get started, add the bot to your server. Next, wait for a game to be active, finally, type `/startgame` to see active Major League games.
