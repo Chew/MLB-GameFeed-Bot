@@ -19,6 +19,7 @@ import pw.chew.mlb.commands.SetInfoCommand;
 import pw.chew.mlb.commands.ShutdownCommand;
 import pw.chew.mlb.commands.StartGameCommand;
 import pw.chew.mlb.commands.StopGameCommand;
+import pw.chew.mlb.listeners.InteractionHandler;
 import pw.chew.mlb.listeners.JDAListeners;
 
 import javax.security.auth.login.LoginException;
@@ -65,6 +66,7 @@ public class MLBBot {
             .addEventListeners(
                 waiter, commandClient // JDA-Chewtils stuff
                 , new JDAListeners()
+                , new InteractionHandler()
             ).build();
 
         RestClient.setClient(jda.getHttpClient());

@@ -10,6 +10,7 @@ import net.dv8tion.jda.api.interactions.commands.Command;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
+import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.utils.TimeFormat;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import org.json.JSONArray;
@@ -17,9 +18,12 @@ import org.json.JSONObject;
 import pw.chew.chewbotcca.util.RestClient;
 import pw.chew.mlb.objects.MLBAPIUtil;
 
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -38,22 +42,14 @@ public class PlanGameCommand extends SlashCommand {
                 .setChannelTypes(ChannelType.TEXT, ChannelType.FORUM),
             new OptionData(OptionType.STRING, "date", "The date of the game. Select one from the list!", true)
                 .setAutoComplete(true),
-            new OptionData(OptionType.STRING, "sport", "The sport to plan a game for, Majors by default.", false)
-                .setAutoComplete(true)
+            new OptionData(OptionType.STRING, "sport", "The sport to plan a game for, Majors by default. Type text in team to find suggestions.", false)
+                .setAutoComplete(true),
+            new OptionData(OptionType.BOOLEAN, "thread", "Whether to make a thread or not. Defaults to true, required true for forums.", false),
+            new OptionData(OptionType.BOOLEAN, "event", "Whether to additionally create an event with all the information. Defaults to false.", false)
         );
     }
 
-    @Override
-    protected void execute(SlashCommandEvent event) {
-        OptionMapping channelMapping = event.getOption("channel");
-        if (channelMapping == null) {
-            event.reply("You must specify a channel to plan for!").setEphemeral(true).queue();
-            return;
-        }
-        GuildChannelUnion channel = channelMapping.getAsChannel();
-
-        String gamePk = event.optString("date", "1");
-
+    public static String generateGameBlurb(String gamePk) {
         // get da info
         JSONObject game = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/schedule?language=en&gamePk=%s&hydrate=broadcasts(all),gameInfo,team,probablePitcher(all)&useLatestGames=true&fields=dates,date,games,gameDate,teams,away,probablePitcher,fullName,team,teamName,name,leagueRecord,wins,losses,pct,home,broadcasts,type,name,homeAway,isNational,callSign".formatted(gamePk)))
             .getJSONArray("dates")
@@ -72,10 +68,10 @@ public class PlanGameCommand extends SlashCommand {
         // Teams
         JSONObject home = game.getJSONObject("teams").getJSONObject("home");
         JSONObject away = game.getJSONObject("teams").getJSONObject("away");
-        
+
         JSONObject homeRecord = home.getJSONObject("leagueRecord");
         JSONObject awayRecord = away.getJSONObject("leagueRecord");
-        
+
         String homeName = home.getJSONObject("team").getString("teamName");
         String awayName = away.getJSONObject("team").getString("teamName");
 
@@ -115,7 +111,7 @@ public class PlanGameCommand extends SlashCommand {
         if (tv.isEmpty()) tv.add("No TV Broadcasts");
         if (radio.isEmpty()) radio.add("No Radio Broadcasts");
 
-        String response = """
+        return """
             **%s** @ **%s**
             **Game Time**: %s
             
@@ -143,11 +139,56 @@ public class PlanGameCommand extends SlashCommand {
             String.join("\n", tv), String.join("\n", radio), // tv and radio broadcasts
             gamePk // game pk
         );
+    }
+
+    @Override
+    protected void execute(SlashCommandEvent event) {
+        OptionMapping channelMapping = event.getOption("channel");
+        if (channelMapping == null) {
+            event.reply("You must specify a channel to plan for!").setEphemeral(true).queue();
+            return;
+        }
+        GuildChannelUnion channel = channelMapping.getAsChannel();
+
+        String gamePk = event.optString("date", "1");
+        String response = generateGameBlurb(gamePk);
+
+        boolean makeThread = event.optBoolean("thread", true);
+        boolean makeEvent = event.optBoolean("event", false);
+
+        if (makeEvent) {
+            String name = response.split("\n")[0];
+            long time = Long.parseLong(response.split("\n")[1].split(":")[2]);
+
+            OffsetDateTime start = Instant.ofEpochSecond(time).atOffset(ZoneOffset.UTC);
+            if (start.isBefore(OffsetDateTime.now(ZoneOffset.UTC))) {
+                start = OffsetDateTime.now(ZoneOffset.UTC).plusSeconds(15);
+            }
+
+            try {
+                channel.getGuild().createScheduledEvent(name, "Ballpark", start, start.plus(4, ChronoUnit.HOURS))
+                    .setDescription(response).queue();
+            } catch (InsufficientPermissionException e) {
+                event.reply("I don't have permission to create events!").setEphemeral(true).queue();
+                    return;
+            }
+        }
 
         switch (channel.getType()) {
             case TEXT -> {
+                if (!makeThread) {
+                    channel.asTextChannel().sendMessage(response).addActionRow(
+                        Button.primary("plangame:refresh:"+gamePk, "Refresh")
+                    ).queue(message -> {
+                        event.reply("Planned game! " + message.getJumpUrl()).setEphemeral(true).queue();
+                    });
+                    return;
+                }
+
                 channel.asTextChannel().createThreadChannel(name).queue(threadChannel -> {
-                    threadChannel.sendMessage(response).queue(msg -> {
+                    threadChannel.sendMessage(response).addActionRow(
+                        Button.primary("plangame:refresh:"+gamePk, "Refresh")
+                    ).queue(msg -> {
                         try {
                             msg.pin().queue();
                         } catch (InsufficientPermissionException ignored) {
@@ -157,7 +198,9 @@ public class PlanGameCommand extends SlashCommand {
                 });
             }
             case FORUM -> {
-                channel.asForumChannel().createForumPost(name, MessageCreateData.fromContent(response)).queue(forumPost -> {
+                channel.asForumChannel().createForumPost(name, MessageCreateData.fromContent(response)).addActionRow(
+                    Button.primary("plangame:refresh:"+gamePk, "Refresh")
+                ).queue(forumPost -> {
                     try {
                         forumPost.getMessage().pin().queue();
                     } catch (InsufficientPermissionException ignored) {
@@ -171,7 +214,7 @@ public class PlanGameCommand extends SlashCommand {
     @Override
     public void onAutoComplete(CommandAutoCompleteInteractionEvent event) {
         switch (event.getFocusedOption().getName()) {
-            case "team": {
+            case "team" -> {
                 // get current value of sport
                 String sport = event.getOption("sport", "1", OptionMapping::getAsString);
                 String input = event.getFocusedOption().getValue();
@@ -184,11 +227,11 @@ public class PlanGameCommand extends SlashCommand {
 
                 return;
             }
-            case "sport": {
+            case "sport" -> {
                 event.replyChoices(MLBAPIUtil.getSports().asChoices()).queue();
                 return;
             }
-            case "date": {
+            case "date" -> {
                 int teamId = event.getOption("team", -1, OptionMapping::getAsInt);
                 String sport = event.getOption("sport", "1", OptionMapping::getAsString);
 
@@ -249,7 +292,7 @@ public class PlanGameCommand extends SlashCommand {
         event.replyChoices().queue();
     }
 
-    private void cleanDuplicates(List<String> list) {
+    private static void cleanDuplicates(List<String> list) {
         for (int i = 0; i < list.size(); i++) {
             String radioTeam = list.get(i).split(" - ")[0];
             for (int j = 0; j < list.size(); j++) {
