@@ -40,24 +40,34 @@ public class StartGameCommand extends SlashCommand {
     @Override
     protected void execute(SlashCommandEvent event) {
         String gamePk = event.getOption("game", "0", OptionMapping::getAsString);
+        String startGame = startGame(gamePk, event.getChannel().getId());
+        event.reply(startGame).setEphemeral(!startGame.contains("Starting game")).queue();
+    }
 
+    public static String startGame(String gamePk, String channelId) {
         for (ActiveGame game : ACTIVE_GAMES) {
-            if (game.channelId().equals(event.getGuildChannel().getId())) {
-                event.reply("This channel is already playing a game: " + game.gamePk() + ". Please wait for it to finish, or stop it with `/stopgame`.").queue();
-                return;
+            if (game.channelId().equals(channelId)) {
+                return "This channel is already playing a game: " + game.gamePk() + ". Please wait for it to finish, or stop it with `/stopgame`.";
             }
         }
 
         // Start a new thread
-        ActiveGame activeGame = new ActiveGame(gamePk, event.getGuildChannel().getId());
+        ActiveGame activeGame = new ActiveGame(gamePk, channelId);
         GameState currentState = new GameState(gamePk);
 
-        event.reply("Starting game with gamePk: " + gamePk + "\n" +
-            currentState.awayTeam() + " @ " + currentState.homeTeam() + " at " +
-            TimeFormat.DATE_TIME_SHORT.format(currentState.officialDate())
-        ).queue();
+        // We can only start games if the start time is less than 30 minutes away
+        // E.g. if game starts at 2:30, and the time is 1:59, we cannot start the game
+        // But, if it's 2:00, we can start the game
+        // We can also start it if it's like, 2:56, who cares, maybe we forgot to start it
+        if (OffsetDateTime.now().isBefore(currentState.officialDate().minusMinutes(30))) {
+            return "This game is not yet ready to start. Please wait until the game is within 30 minutes of starting.";
+        }
 
         GameFeedHandler.addGame(activeGame);
+
+        return "Starting game with gamePk: " + gamePk + "\n" +
+            currentState.awayTeam() + " @ " + currentState.homeTeam() + " at " +
+            TimeFormat.DATE_TIME_SHORT.format(currentState.officialDate());
     }
 
     @Override

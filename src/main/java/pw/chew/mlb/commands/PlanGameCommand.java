@@ -177,18 +177,14 @@ public class PlanGameCommand extends SlashCommand {
         switch (channel.getType()) {
             case TEXT -> {
                 if (!makeThread) {
-                    channel.asTextChannel().sendMessage(response).addActionRow(
-                        Button.primary("plangame:refresh:"+gamePk, "Refresh")
-                    ).queue(message -> {
+                    channel.asTextChannel().sendMessage(response).setActionRow(buildButtons(gamePk)).queue(message -> {
                         event.reply("Planned game! " + message.getJumpUrl()).setEphemeral(true).queue();
                     });
                     return;
                 }
 
                 channel.asTextChannel().createThreadChannel(name).queue(threadChannel -> {
-                    threadChannel.sendMessage(response).addActionRow(
-                        Button.primary("plangame:refresh:"+gamePk, "Refresh")
-                    ).queue(msg -> {
+                    threadChannel.sendMessage(response).setActionRow(buildButtons(gamePk)).queue(msg -> {
                         try {
                             msg.pin().queue();
                         } catch (InsufficientPermissionException ignored) {
@@ -198,9 +194,7 @@ public class PlanGameCommand extends SlashCommand {
                 });
             }
             case FORUM -> {
-                channel.asForumChannel().createForumPost(name, MessageCreateData.fromContent(response)).addActionRow(
-                    Button.primary("plangame:refresh:"+gamePk, "Refresh")
-                ).queue(forumPost -> {
+                channel.asForumChannel().createForumPost(name, MessageCreateData.fromContent(response)).setActionRow(buildButtons(gamePk)).queue(forumPost -> {
                     try {
                         forumPost.getMessage().pin().queue();
                     } catch (InsufficientPermissionException ignored) {
@@ -290,6 +284,13 @@ public class PlanGameCommand extends SlashCommand {
         }
 
         event.replyChoices().queue();
+    }
+
+    public static List<Button> buildButtons(String gamePk) {
+        return List.of(
+            Button.success("plangame:start:"+gamePk, "Start"),
+            Button.secondary("plangame:refresh:"+gamePk, "Refresh")
+        );
     }
 
     private static void cleanDuplicates(List<String> list) {
