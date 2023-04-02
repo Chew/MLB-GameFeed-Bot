@@ -50,20 +50,13 @@ public class PlanGameCommand extends SlashCommand {
     }
 
     public static String generateGameBlurb(String gamePk) {
-        // get da info
-        JSONObject game = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/schedule?language=en&gamePk=%s&hydrate=broadcasts(all),gameInfo,team,probablePitcher(all)&useLatestGames=true&fields=dates,date,games,gameDate,teams,away,probablePitcher,fullName,team,teamName,name,leagueRecord,wins,losses,pct,home,broadcasts,type,name,homeAway,isNational,callSign".formatted(gamePk)))
-            .getJSONArray("dates")
-            .getJSONObject(0)
-            .getJSONArray("games")
-            .getJSONObject(0);
+        GameBlurb blurb = new GameBlurb(gamePk);
+        return blurb.blurb();
+    }
 
+    private static String generateGameBlurb(String gamePk, JSONObject game) {
         // Format "2023-02-26T20:05:00Z" to OffsetDateTime
         TemporalAccessor accessor = DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(game.getString("gameDate"));
-        OffsetDateTime dateTime = OffsetDateTime.from(accessor);
-
-        // Convert to Eastern Time, then to this format: "Feb 26th"
-        ZoneId eastern = ZoneId.of("America/New_York");
-        String date = dateTime.atZoneSameInstant(eastern).format(DateTimeFormatter.ofPattern("MMM d"));
 
         // Teams
         JSONObject home = game.getJSONObject("teams").getJSONObject("home");
@@ -74,8 +67,6 @@ public class PlanGameCommand extends SlashCommand {
 
         String homeName = home.getJSONObject("team").getString("teamName");
         String awayName = away.getJSONObject("team").getString("teamName");
-
-        String name = "%s @ %s - %s".formatted(awayName, homeName, date);
 
         // Get probable pitchers
         JSONObject fallback = new JSONObject().put("fullName", "TBD");
@@ -151,23 +142,22 @@ public class PlanGameCommand extends SlashCommand {
         GuildChannelUnion channel = channelMapping.getAsChannel();
 
         String gamePk = event.optString("date", "1");
-        String response = generateGameBlurb(gamePk);
+        GameBlurb blurb = new GameBlurb(gamePk);
 
         boolean makeThread = event.optBoolean("thread", true);
         boolean makeEvent = event.optBoolean("event", false);
 
         if (makeEvent) {
-            String name = response.split("\n")[0];
-            long time = Long.parseLong(response.split("\n")[1].split(":")[2]);
+            String name = blurb.name();
 
-            OffsetDateTime start = Instant.ofEpochSecond(time).atOffset(ZoneOffset.UTC);
+            OffsetDateTime start = blurb.time();
             if (start.isBefore(OffsetDateTime.now(ZoneOffset.UTC))) {
                 start = OffsetDateTime.now(ZoneOffset.UTC).plusSeconds(15);
             }
 
             try {
                 channel.getGuild().createScheduledEvent(name, "Ballpark", start, start.plus(4, ChronoUnit.HOURS))
-                    .setDescription(response).queue();
+                    .setDescription(blurb.blurb()).queue();
             } catch (InsufficientPermissionException e) {
                 event.reply("I don't have permission to create events!").setEphemeral(true).queue();
                     return;
@@ -177,14 +167,14 @@ public class PlanGameCommand extends SlashCommand {
         switch (channel.getType()) {
             case TEXT -> {
                 if (!makeThread) {
-                    channel.asTextChannel().sendMessage(response).setActionRow(buildButtons(gamePk)).queue(message -> {
+                    channel.asTextChannel().sendMessage(blurb.blurb()).setActionRow(buildButtons(gamePk)).queue(message -> {
                         event.reply("Planned game! " + message.getJumpUrl()).setEphemeral(true).queue();
                     });
                     return;
                 }
 
-                channel.asTextChannel().createThreadChannel(name).queue(threadChannel -> {
-                    threadChannel.sendMessage(response).setActionRow(buildButtons(gamePk)).queue(msg -> {
+                channel.asTextChannel().createThreadChannel(blurb.name()).queue(threadChannel -> {
+                    threadChannel.sendMessage(blurb.blurb()).setActionRow(buildButtons(gamePk)).queue(msg -> {
                         try {
                             msg.pin().queue();
                         } catch (InsufficientPermissionException ignored) {
@@ -193,15 +183,14 @@ public class PlanGameCommand extends SlashCommand {
                     });
                 });
             }
-            case FORUM -> {
-                channel.asForumChannel().createForumPost(name, MessageCreateData.fromContent(response)).setActionRow(buildButtons(gamePk)).queue(forumPost -> {
+            case FORUM ->
+                channel.asForumChannel().createForumPost(blurb.name(), MessageCreateData.fromContent(blurb.blurb())).setActionRow(buildButtons(gamePk)).queue(forumPost -> {
                     try {
                         forumPost.getMessage().pin().queue();
                     } catch (InsufficientPermissionException ignored) {
                     }
                     event.reply("Planned game! " + forumPost.getThreadChannel().getAsMention()).setEphemeral(true).queue();
                 });
-            }
         }
     }
 
@@ -304,6 +293,47 @@ public class PlanGameCommand extends SlashCommand {
                     list.remove(j);
                 }
             }
+        }
+    }
+
+    private static class GameBlurb {
+        String gamePk;
+        JSONObject data;
+
+        public GameBlurb(String gamePk) {
+            this.gamePk = gamePk;
+
+            // get da info
+            this.data = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/schedule?language=en&gamePk=%s&hydrate=broadcasts(all),gameInfo,team,probablePitcher(all)&useLatestGames=true&fields=dates,date,games,gameDate,teams,away,probablePitcher,fullName,team,teamName,name,leagueRecord,wins,losses,pct,home,broadcasts,type,name,homeAway,isNational,callSign".formatted(gamePk)))
+                .getJSONArray("dates")
+                .getJSONObject(0)
+                .getJSONArray("games")
+                .getJSONObject(0);
+        }
+
+        public String name() {
+            // Convert to Eastern Time, then to this format: "Feb 26th"
+            ZoneId eastern = ZoneId.of("America/New_York");
+            String date = time().atZoneSameInstant(eastern).format(DateTimeFormatter.ofPattern("MMM d"));
+
+            // Teams
+            JSONObject home = data.getJSONObject("teams").getJSONObject("home");
+            JSONObject away = data.getJSONObject("teams").getJSONObject("away");
+
+            String homeName = home.getJSONObject("team").getString("teamName");
+            String awayName = away.getJSONObject("team").getString("teamName");
+
+            return "%s @ %s - %s".formatted(awayName, homeName, date);
+        }
+
+        public String blurb() {
+            return generateGameBlurb(gamePk, data);
+        }
+
+        public OffsetDateTime time() {
+            // Format "2023-02-26T20:05:00Z" to OffsetDateTime
+            TemporalAccessor accessor = DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(data.getString("gameDate"));
+            return OffsetDateTime.from(accessor);
         }
     }
 }
