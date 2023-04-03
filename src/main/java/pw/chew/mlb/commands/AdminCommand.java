@@ -80,6 +80,7 @@ public class AdminCommand extends Command {
         Map<String, List<GuildChannel>> channelMap = new HashMap<>();
         LoggerFactory.getLogger(this.getClass()).debug("There are {} active games", GameFeedHandler.ACTIVE_GAMES.size());
         for (ActiveGame game : GameFeedHandler.ACTIVE_GAMES) {
+            LoggerFactory.getLogger(this.getClass()).debug("Found active game {}", game);
             GuildChannel channel = event.getJDA().getGuildChannelById(game.channelId());
             var channels = channelMap.get(game.gamePk());
             if (channels == null) {
