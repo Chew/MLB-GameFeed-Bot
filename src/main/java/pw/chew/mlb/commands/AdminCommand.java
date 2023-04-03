@@ -4,6 +4,7 @@ import com.jagrosh.jdautilities.command.Command;
 import com.jagrosh.jdautilities.command.CommandEvent;
 import com.jagrosh.jdautilities.menu.EmbedPaginator;
 import com.jagrosh.jdautilities.menu.Paginator;
+import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.exceptions.PermissionException;
 import org.slf4j.LoggerFactory;
@@ -35,6 +36,8 @@ public class AdminCommand extends Command {
             activeGames(event);
         } else if (args.startsWith("config")) {
             config(event);
+        } else if (args.startsWith("stats")) {
+            botStats(event);
         }
     }
 
@@ -89,11 +92,23 @@ public class AdminCommand extends Command {
         for (String key : channelMap.keySet()) {
             var channels = channelMap.get(key);
             for (GuildChannel channel : channels) {
-                LoggerFactory.getLogger(this.getClass()).debug("Game {} is in channel {}", key, channel.getName());
+                LoggerFactory.getLogger(this.getClass()).debug("Game {} is in channel {}", key, channel);
                 activeGames.addItems(channel.getGuild().getName() + " - " + channel.getAsMention() + " (" + key + ")");
             }
         }
 
         activeGames.build().paginate(event.getChannel(), 1);
+    }
+
+    public void botStats(CommandEvent event) {
+        long serverCount = event.getJDA().getGuilds().size();
+        long activeGames = GameFeedHandler.ACTIVE_GAMES.size();
+
+        EmbedBuilder embed = new EmbedBuilder()
+            .setTitle("Bot Stats")
+            .addField("Servers", String.valueOf(serverCount), true)
+            .addField("Active Games", String.valueOf(activeGames), true);
+
+        event.reply(embed.build());
     }
 }
