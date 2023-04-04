@@ -278,7 +278,9 @@ public class PlanGameCommand extends SlashCommand {
     public static List<Button> buildButtons(String gamePk) {
         return List.of(
             Button.success("plangame:start:"+gamePk, "Start"),
-            Button.secondary("plangame:refresh:"+gamePk, "Refresh")
+            Button.secondary("plangame:refresh:"+gamePk, "Refresh"),
+            Button.primary("plangame:lineup:"+gamePk+":away", "Away Lineup"),
+            Button.primary("plangame:lineup:"+gamePk+":home", "Home Lineup")
         );
     }
 
