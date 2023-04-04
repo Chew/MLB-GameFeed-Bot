@@ -150,8 +150,8 @@ public class MLBAPIUtil {
             return raw.getJSONObject("seasonStats").getJSONObject("batting").getString("avg");
         }
 
-        public String obp() {
-            return raw.getJSONObject("seasonStats").getJSONObject("batting").getString("obp");
+        public String ops() {
+            return raw.getJSONObject("seasonStats").getJSONObject("batting").getString("ops");
         }
 
         public int homers() {
@@ -162,7 +162,7 @@ public class MLBAPIUtil {
             if (isPitcher()) {
                 return "%s (%s ERA)".formatted(name(), era());
             } else {
-                return "%s (%s) - %s AVG, %s OBP, %s HR".formatted(name(), position().abbreviation(), avg(), obp(), homers());
+                return "%s (%s) - %s AVG, %s OPS, %s HR".formatted(name(), position().abbreviation(), avg(), ops(), homers());
             }
         }
     }
