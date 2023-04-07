@@ -3,6 +3,7 @@ package pw.chew.mlb.listeners;
 import com.jagrosh.jdautilities.commons.utils.TableBuilder;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import org.json.JSONArray;
@@ -378,18 +379,20 @@ public class GameFeedHandler {
 
     public static void endGame(String gamePk, String scorecard) {
         for (ActiveGame game : ACTIVE_GAMES) {
-            if (game.gamePk().equals(gamePk)) {
-                GuildMessageChannel channel = (GuildMessageChannel) jda.getGuildChannelById(game.channelId());
-                if (channel != null) {
-                    channel.sendMessage("Game Over!\n**Final Scorecard**" + scorecard)
-                        .setActionRow(Button.link("https://mlb.chew.pw/game/" + gamePk, "View Game"))
-                        .queue();
-                }
+            // We only want to send the game over message to the channels that are watching the game
+            if (!game.gamePk().equals(gamePk)) continue;
 
-                // Remove the game from the active games list
-                ACTIVE_GAMES.remove(game);
-            }
+            GuildChannel gChan = jda.getGuildChannelById(game.channelId());
+            if (gChan == null) continue;
+
+            GuildMessageChannel channel = (GuildMessageChannel)gChan;
+            channel.sendMessage("Game Over!\n**Final Scorecard**" + scorecard)
+                .setActionRow(Button.link("https://mlb.chew.pw/game/" + gamePk, "View Game"))
+                .queue();
         }
+
+        // Remove the games from the active games list
+        ACTIVE_GAMES.removeIf(game -> game.gamePk().equals(gamePk));
 
         // Remove the game thread
         GAME_THREADS.remove(gamePk);
