@@ -2,15 +2,16 @@ package pw.chew.mlb.listeners;
 
 import com.jagrosh.jdautilities.commons.utils.TableBuilder;
 import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
+import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import pw.chew.mlb.commands.StartGameCommand;
 import pw.chew.mlb.objects.ActiveGame;
 import pw.chew.mlb.objects.ChannelConfig;
 import pw.chew.mlb.objects.GameState;
@@ -24,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 import static pw.chew.mlb.MLBBot.jda;
 
 public class GameFeedHandler {
-    private static final Logger logger = LoggerFactory.getLogger(StartGameCommand.class);
+    private static final Logger logger = LoggerFactory.getLogger(GameFeedHandler.class);
     public final static Map<String, Thread> GAME_THREADS = new HashMap<>();
     public final static List<ActiveGame> ACTIVE_GAMES = new ArrayList<>();
 
@@ -38,9 +39,7 @@ public class GameFeedHandler {
         ACTIVE_GAMES.add(game);
 
         if (!GAME_THREADS.containsKey(game.gamePk())) {
-            Thread thread = new Thread(() -> {
-                runGame(game.gamePk());
-            });
+            Thread thread = new Thread(() -> runGame(game.gamePk()), "Game-" + game.gamePk());
 
             GAME_THREADS.put(game.gamePk(), thread);
             thread.start();
@@ -70,10 +69,10 @@ public class GameFeedHandler {
             Thread thread = GAME_THREADS.get(game.gamePk());
             thread.interrupt();
             GAME_THREADS.remove(game.gamePk());
-            logger.info("Stopped game " + game.gamePk() + " thread");
+            logger.debug("Stopped game " + game.gamePk() + " thread");
         }
 
-        logger.info("Removed game " + game.gamePk() + " to the active games list");
+        logger.debug("Removed game " + game.gamePk() + " from the active games list");
     }
 
     /**
@@ -134,6 +133,7 @@ public class GameFeedHandler {
             if (recentState.failed()) {
                 logger.warn("Failed to get game state for gamePk: " + gamePk + "! Retrying in 3s...");
                 try {
+                    //noinspection BusyWait
                     Thread.sleep(3000);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
@@ -161,8 +161,9 @@ public class GameFeedHandler {
                     .setDescription(recentState.currentPlayDescription());
 
                 // Display Hit info if there is any. This only shows for balls that are in-play.
-                if (recentState.hitInfo() != null) {
-                    embed.addField("Hit Info", recentState.hitInfo(), false);
+                String hitInfo = recentState.hitInfo();
+                if (hitInfo != null) {
+                    embed.addField("Hit Info", hitInfo, false);
                 }
 
                 // Check if score changed
@@ -182,7 +183,7 @@ public class GameFeedHandler {
 
                     embed.addField("Outs", recentState.outs() + " (+" + oldOuts + ")", true);
 
-                    if (recentState.outs() == 3) {
+                    if (recentState.outs() == 3 && !scoringPlay) {
                         embed.addField("Score", recentState.awayTeam() + " " + recentState.awayScore() + " - " + recentState.homeScore() + " " + recentState.homeTeam(), true);
                     }
                 }
@@ -198,12 +199,7 @@ public class GameFeedHandler {
                 }
 
                 // Send result
-                if (recentState.currentBallInPlay()) {
-                    sendPlay(embed.build(), gamePk, true, scoringPlay);
-                } else {
-                    // Longer delay for non-in-play balls
-                    sendPlay(embed.build(), gamePk, false, scoringPlay);
-                }
+                sendPlay(embed.build(), gamePk, recentState.currentBallInPlay(), scoringPlay);
             }
 
             // Check for new advisories
@@ -215,7 +211,7 @@ public class GameFeedHandler {
                     JSONObject advisory = newAdvisories.get(i);
                     JSONObject details = advisory.getJSONObject("details");
 
-                    LoggerFactory.getLogger(GameFeedHandler.class).debug("New advisory: " + advisory);
+                    logger.debug("New advisory: " + advisory);
 
                     EmbedBuilder detailEmbed = new EmbedBuilder()
                         .setTitle(details.getString("event"))
@@ -255,6 +251,7 @@ public class GameFeedHandler {
 
             // Wait for 10 seconds before requesting the next game state
             try {
+                //noinspection BusyWait
                 Thread.sleep(10000);
             } catch (InterruptedException e) {
                 e.printStackTrace();
@@ -343,37 +340,45 @@ public class GameFeedHandler {
     public static void sendAdvisory(List<MessageEmbed> embeds, String gamePk) {
         for (ActiveGame game : getGames(gamePk)) {
             ChannelConfig config = ChannelConfig.getConfig(game.channelId());
+            if (!config.gameAdvisories()) continue;
 
-            if (config.gameAdvisories()) {
-                ((GuildMessageChannel)jda.getGuildChannelById(game.channelId()))
-                    .sendMessageEmbeds(embeds).queue();
-            }
+            GuildMessageChannel channel = canSafelySend(game);
+            if (channel == null) continue;
+
+            channel.sendMessageEmbeds(embeds).queue();
         }
     }
 
     public static void sendMessages(MessageEmbed message, String gamePk) {
-        for (ActiveGame game : ACTIVE_GAMES) {
-            if (game.gamePk().equals(gamePk)) {
-                ((GuildMessageChannel)jda.getGuildChannelById(game.channelId()))
-                    .sendMessageEmbeds(message).queue();
-            }
+        for (ActiveGame game : getGames(gamePk)) {
+            GuildMessageChannel channel = canSafelySend(game);
+            if (channel == null) continue;
+
+            channel.sendMessageEmbeds(message).queue();
         }
     }
 
-
+    /**
+     * Sends a play message to enabled channels.
+     *
+     * @param message The message to send.
+     * @param gamePk The gamePk of the game.
+     * @param inPlay Whether the ball is in play.
+     * @param isScoringPlay Whether the play is a scoring play.
+     */
     public static void sendPlay(MessageEmbed message, String gamePk, boolean inPlay, boolean isScoringPlay) {
         for (ActiveGame game : getGames(gamePk)) {
             ChannelConfig config = ChannelConfig.getConfig(game.channelId());
 
             // If configured to only show scoring plays, ignore non-scoring plays
-            if (config.onlyScoringPlays() && !isScoringPlay) {
-                continue;
-            }
+            if (config.onlyScoringPlays() && !isScoringPlay) continue;
 
             int delay = inPlay ? config.inPlayDelay() : config.noPlayDelay();
 
-            ((GuildMessageChannel)jda.getGuildChannelById(game.channelId()))
-                .sendMessageEmbeds(message).queueAfter(delay, TimeUnit.SECONDS);
+            GuildMessageChannel channel = canSafelySend(game);
+            if (channel == null) continue;
+
+            channel.sendMessageEmbeds(message).queueAfter(delay, TimeUnit.SECONDS);
         }
     }
 
@@ -386,9 +391,13 @@ public class GameFeedHandler {
             if (gChan == null) continue;
 
             GuildMessageChannel channel = (GuildMessageChannel)gChan;
-            channel.sendMessage("Game Over!\n**Final Scorecard**" + scorecard)
-                .setActionRow(Button.link("https://mlb.chew.pw/game/" + gamePk, "View Game"))
-                .queue();
+            try {
+                channel.sendMessage("Game Over!\n**Final Scorecard**" + scorecard)
+                    .setActionRow(Button.link("https://mlb.chew.pw/game/" + gamePk, "View Game"))
+                    .queue();
+            } catch (InsufficientPermissionException ignored) {
+                logger.debug("Insufficient permissions to send message to channel " + game.channelId());
+            }
         }
 
         // Remove the games from the active games list
@@ -396,6 +405,40 @@ public class GameFeedHandler {
 
         // Remove the game thread
         GAME_THREADS.remove(gamePk);
+    }
+
+    /**
+     * Checks to see if the bot can safely send messages to the channel.
+     * This checks to make sure the channel exists, and if we can talk.
+     *
+     * @param game The game to check
+     * @return The channel if we can safely send messages, null otherwise
+     */
+    private static GuildMessageChannel canSafelySend(ActiveGame game) {
+        GuildChannel gChan = jda.getGuildChannelById(game.channelId());
+        // channel is null for some reason, so we're going to remove the game from the active games list
+        if (gChan == null) {
+            logger.debug("Stopping game %s due to nonexistent channel %s".formatted(game.gamePk(), game.channelId()));
+            stopGame(game);
+            return null;
+        }
+
+        GuildMessageChannel channel = (GuildMessageChannel)gChan;
+        // If we can't talk in the channel, we're going to remove the game from the active games list
+        if (!channel.canTalk()) {
+            logger.debug("Stopping game %s because we can't speak in %s".formatted(game.gamePk(), game.channelId()));
+            stopGame(game);
+            return null;
+        }
+        // Check to see if we have permission to send embeds
+        if (!channel.getGuild().getSelfMember().hasPermission(channel, Permission.MESSAGE_EMBED_LINKS)) {
+            logger.debug("Stopping game %s because we can't send embeds to %s".formatted(game.gamePk(), game.channelId()));
+            channel.sendMessage("Uh oh! I can't send embeds to this channel. This is required! Please give me the permission and start the game again.").queue();
+            stopGame(game);
+            return null;
+        }
+
+        return channel;
     }
 
     /**
@@ -408,9 +451,7 @@ public class GameFeedHandler {
         List<ActiveGame> games = new ArrayList<>();
 
         for (ActiveGame game : ACTIVE_GAMES) {
-            if (!game.gamePk().equals(gamePk)) {
-                continue;
-            }
+            if (!game.gamePk().equals(gamePk)) continue;
 
             games.add(game);
         }
