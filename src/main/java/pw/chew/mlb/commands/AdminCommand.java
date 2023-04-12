@@ -104,11 +104,14 @@ public class AdminCommand extends Command {
     public void botStats(CommandEvent event) {
         long serverCount = event.getJDA().getGuilds().size();
         long activeGames = GameFeedHandler.ACTIVE_GAMES.size();
+        long activeThreads = GameFeedHandler.GAME_THREADS.size();
 
         EmbedBuilder embed = new EmbedBuilder()
             .setTitle("Bot Stats")
             .addField("Servers", String.valueOf(serverCount), true)
-            .addField("Active Games", String.valueOf(activeGames), true);
+            .addField("Active Games", String.valueOf(activeGames), true)
+            .addField("Active Threads", String.valueOf(activeThreads), true)
+            ;
 
         event.reply(embed.build());
     }
