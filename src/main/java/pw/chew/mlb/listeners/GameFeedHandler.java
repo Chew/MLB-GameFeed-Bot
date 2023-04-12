@@ -383,10 +383,7 @@ public class GameFeedHandler {
     }
 
     public static void endGame(String gamePk, String scorecard) {
-        for (ActiveGame game : ACTIVE_GAMES) {
-            // We only want to send the game over message to the channels that are watching the game
-            if (!game.gamePk().equals(gamePk)) continue;
-
+        for (ActiveGame game : getGames(gamePk)) {
             GuildChannel gChan = jda.getGuildChannelById(game.channelId());
             if (gChan == null) continue;
 
