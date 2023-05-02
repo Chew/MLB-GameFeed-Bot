@@ -2,6 +2,8 @@ package pw.chew.mlb.commands;
 
 import com.jagrosh.jdautilities.command.SlashCommand;
 import com.jagrosh.jdautilities.command.SlashCommandEvent;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.entities.channel.unions.GuildChannelUnion;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
@@ -18,7 +20,6 @@ import org.json.JSONObject;
 import pw.chew.chewbotcca.util.RestClient;
 import pw.chew.mlb.objects.MLBAPIUtil;
 
-import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -29,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public class PlanGameCommand extends SlashCommand {
     public PlanGameCommand() {
@@ -49,12 +51,12 @@ public class PlanGameCommand extends SlashCommand {
         );
     }
 
-    public static String generateGameBlurb(String gamePk) {
+    public static MessageEmbed generateGameBlurb(String gamePk) {
         GameBlurb blurb = new GameBlurb(gamePk);
         return blurb.blurb();
     }
 
-    private static String generateGameBlurb(String gamePk, JSONObject game) {
+    private static EmbedBuilder generateGameBlurb(String gamePk, JSONObject game) {
         // Format "2023-02-26T20:05:00Z" to OffsetDateTime
         TemporalAccessor accessor = DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(game.getString("gameDate"));
 
@@ -102,34 +104,16 @@ public class PlanGameCommand extends SlashCommand {
         if (tv.isEmpty()) tv.add("No TV Broadcasts");
         if (radio.isEmpty()) radio.add("No Radio Broadcasts");
 
-        return """
-            **%s** @ **%s**
-            **Game Time**: %s
-            
-            **Probable Pitchers**
-            %s: %s
-            %s: %s
-            
-            **Records**
-            %s: %s - %s
-            %s: %s - %s
-            
-            :tv:
-            %s
-            :radio:
-            %s
-            
-            Game Link: https://mlb.chew.pw/game/%s
-            """.formatted(
-                awayName, homeName, // teams
-            TimeFormat.DATE_TIME_LONG.format(accessor), // game time
-            awayName, awayPitcher, // away pitcher
-            homeName, homePitcher, // home pitcher
-            awayName, awayRecord.getInt("wins"), awayRecord.getInt("losses"), // away record
-            homeName, homeRecord.getInt("wins"), homeRecord.getInt("losses"), // home record
-            String.join("\n", tv), String.join("\n", radio), // tv and radio broadcasts
-            gamePk // game pk
-        );
+        return new EmbedBuilder()
+            .setTitle("**%s** @ **%s**".formatted(awayName, homeName), "https://mlb.chew.pw/game/%s".formatted(gamePk))
+            .setDescription("**Game Time**: %s".formatted(TimeFormat.DATE_TIME_LONG.format(accessor)))
+            .addField("Probable Pitchers", "%s: %s\n%s: %s".formatted(awayName, awayPitcher, homeName, homePitcher), true)
+            .addField("Records", "%s: %s - %s\n%s: %s - %s".formatted(
+                awayName, awayRecord.getInt("wins"), awayRecord.getInt("losses"), // away record
+                homeName, homeRecord.getInt("wins"), homeRecord.getInt("losses") // home record
+            ), true)
+            .addField(":tv: Broadcasts", String.join("\n", tv), true)
+            .addField(":radio: Broadcasts", String.join("\n", radio), true);
     }
 
     @Override
@@ -144,7 +128,7 @@ public class PlanGameCommand extends SlashCommand {
         String gamePk = event.optString("date", "1");
         GameBlurb blurb = new GameBlurb(gamePk);
 
-        boolean makeThread = event.optBoolean("thread", true);
+        boolean makeThread = event.optBoolean("thread", false);
         boolean makeEvent = event.optBoolean("event", false);
 
         if (makeEvent) {
@@ -157,7 +141,7 @@ public class PlanGameCommand extends SlashCommand {
 
             try {
                 channel.getGuild().createScheduledEvent(name, "Ballpark", start, start.plus(4, ChronoUnit.HOURS))
-                    .setDescription(blurb.blurb()).queue();
+                    .setDescription(blurb.blurbText()).queue();
             } catch (InsufficientPermissionException e) {
                 event.reply("I don't have permission to create events!").setEphemeral(true).queue();
                     return;
@@ -167,14 +151,14 @@ public class PlanGameCommand extends SlashCommand {
         switch (channel.getType()) {
             case TEXT -> {
                 if (!makeThread) {
-                    channel.asTextChannel().sendMessage(blurb.blurb()).setActionRow(buildButtons(gamePk)).queue(message -> {
+                    channel.asTextChannel().sendMessageEmbeds(blurb.blurb()).setActionRow(buildButtons(gamePk)).queue(message -> {
                         event.reply("Planned game! " + message.getJumpUrl()).setEphemeral(true).queue();
                     });
                     return;
                 }
 
                 channel.asTextChannel().createThreadChannel(blurb.name()).queue(threadChannel -> {
-                    threadChannel.sendMessage(blurb.blurb()).setActionRow(buildButtons(gamePk)).queue(msg -> {
+                    threadChannel.sendMessageEmbeds(blurb.blurb()).setActionRow(buildButtons(gamePk)).queue(msg -> {
                         try {
                             msg.pin().queue();
                         } catch (InsufficientPermissionException ignored) {
@@ -184,7 +168,7 @@ public class PlanGameCommand extends SlashCommand {
                 });
             }
             case FORUM ->
-                channel.asForumChannel().createForumPost(blurb.name(), MessageCreateData.fromContent(blurb.blurb())).setActionRow(buildButtons(gamePk)).queue(forumPost -> {
+                channel.asForumChannel().createForumPost(blurb.name(), MessageCreateData.fromEmbeds(blurb.blurb())).setActionRow(buildButtons(gamePk)).queue(forumPost -> {
                     try {
                         forumPost.getMessage().pin().queue();
                     } catch (InsufficientPermissionException ignored) {
@@ -328,8 +312,17 @@ public class PlanGameCommand extends SlashCommand {
             return "%s @ %s - %s".formatted(awayName, homeName, date);
         }
 
-        public String blurb() {
-            return generateGameBlurb(gamePk, data);
+        public MessageEmbed blurb() {
+            return generateGameBlurb(gamePk, data).build();
+        }
+
+        public String blurbText() {
+            MessageEmbed blurb = blurb();
+            return blurb.getTitle() + "\n" +
+                blurb.getDescription() + "\n" +
+                "\n" +
+                blurb().getFields().stream().map(field -> "**" + field.getName() + "**\n" +  field.getValue()).collect(Collectors.joining("\n\n")) + "\n\n" +
+                "Game Link: " + blurb.getUrl();
         }
 
         public OffsetDateTime time() {
