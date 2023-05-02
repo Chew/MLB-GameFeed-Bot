@@ -19,6 +19,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import static pw.chew.mlb.MLBBot.jda;
+
 public class AdminCommand extends Command {
     public AdminCommand() {
         this.name = "admin";
@@ -106,11 +108,23 @@ public class AdminCommand extends Command {
         long activeGames = GameFeedHandler.ACTIVE_GAMES.size();
         long activeThreads = GameFeedHandler.GAME_THREADS.size();
 
+        // Store a list that can only have unique items
+        List<String> activeServers = new ArrayList<>();
+        for (ActiveGame game : GameFeedHandler.ACTIVE_GAMES) {
+            GuildChannel channel = jda.getGuildChannelById(game.channelId());
+            if (channel == null) continue;
+
+            if (!activeServers.contains(channel.getGuild().getId())) {
+                activeServers.add(channel.getGuild().getId());
+            }
+        }
+
         EmbedBuilder embed = new EmbedBuilder()
             .setTitle("Bot Stats")
             .addField("Servers", String.valueOf(serverCount), true)
             .addField("Active Games", String.valueOf(activeGames), true)
             .addField("Active Threads", String.valueOf(activeThreads), true)
+            .addField("Active Servers", String.valueOf(activeServers.size()), true)
             ;
 
         event.reply(embed.build());
