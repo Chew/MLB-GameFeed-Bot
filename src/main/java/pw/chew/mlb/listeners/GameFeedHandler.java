@@ -402,18 +402,23 @@ public class GameFeedHandler {
                         // add a new field
                         EmbedBuilder builder = new EmbedBuilder(embed);
 
-                        // Check potential homers
-                        String homerDescription = gameState.homerDescription();
-
                         // find the "Homer Info" field
-                        var fields = embed.getFields();
-                        for (var i = 0; i < fields.size(); i++) {
-                            var field = fields.get(i);
-                            if (!Objects.equals(field.getName(), "Homer Info")) continue;
+                        if (gameState.potentialHomer()) {
+                            // Check potential homers
+                            String homerDescription = gameState.homerDescription();
 
-                            // Edit field
-                            var newField = new MessageEmbed.Field("Homer Info", homerDescription, false);
-                            fields.set(i, newField);
+                            // find the "Homer Info" field
+                            for (MessageEmbed.Field field : embed.getFields()) {
+                                if (Objects.equals(field.getName(), "Homer Info")) {
+                                    // remove the field
+                                    builder.getFields().remove(field);
+                                    break;
+                                }
+                            }
+
+                            if (homerDescription != null) {
+                                builder.addField("Homer Info", homerDescription, false);
+                            }
                         }
 
                         return playMsg1.editMessageEmbeds(builder.build());
