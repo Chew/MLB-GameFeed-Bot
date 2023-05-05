@@ -291,7 +291,7 @@ public class GameFeedHandler {
 
         for (int i = 0; i < totalInnings; i++) {
             JSONObject inning = inningData.getJSONObject(i);
-            int awayScore = inning.getJSONObject("away").getInt("runs");
+            String awayScore = inning.getJSONObject("away").optString("runs", "-");
             String homeScore = inning.getJSONObject("home").optString("runs", "-");
 
             tableData[i+1] = new String[] {
