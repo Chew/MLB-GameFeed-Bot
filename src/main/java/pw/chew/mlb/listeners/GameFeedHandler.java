@@ -16,10 +16,13 @@ import pw.chew.mlb.objects.ActiveGame;
 import pw.chew.mlb.objects.ChannelConfig;
 import pw.chew.mlb.objects.GameState;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 import static pw.chew.mlb.MLBBot.jda;
@@ -166,6 +169,11 @@ public class GameFeedHandler {
                     embed.addField("Hit Info", hitInfo, false);
                 }
 
+                // Check potential homers
+                if (recentState.potentialHomer()) {
+                    embed.addField("Homer Info", "Please wait while we calculate...", false);
+                }
+
                 // Check if score changed
                 if (scoringPlay) {
                     boolean homeScored = recentState.homeScore() > currentState.homeScore();
@@ -199,7 +207,7 @@ public class GameFeedHandler {
                 }
 
                 // Send result
-                sendPlay(embed.build(), gamePk, recentState.currentBallInPlay(), scoringPlay);
+                sendPlay(embed.build(), gamePk, recentState, scoringPlay);
             }
 
             // Check for new advisories
@@ -363,22 +371,54 @@ public class GameFeedHandler {
      *
      * @param message The message to send.
      * @param gamePk The gamePk of the game.
-     * @param inPlay Whether the ball is in play.
+     * @param gameState The game state at the time of this play.
      * @param isScoringPlay Whether the play is a scoring play.
      */
-    public static void sendPlay(MessageEmbed message, String gamePk, boolean inPlay, boolean isScoringPlay) {
+    public static void sendPlay(MessageEmbed message, String gamePk, GameState gameState, boolean isScoringPlay) {
         for (ActiveGame game : getGames(gamePk)) {
             ChannelConfig config = ChannelConfig.getConfig(game.channelId());
 
             // If configured to only show scoring plays, ignore non-scoring plays
             if (config.onlyScoringPlays() && !isScoringPlay) continue;
 
+            boolean inPlay = gameState.currentBallInPlay();
             int delay = inPlay ? config.inPlayDelay() : config.noPlayDelay();
 
             GuildMessageChannel channel = canSafelySend(game);
             if (channel == null) continue;
 
-            channel.sendMessageEmbeds(message).queueAfter(delay, TimeUnit.SECONDS);
+            Instant sent = Instant.now();
+            channel.sendMessageEmbeds(message).queueAfter(delay, TimeUnit.SECONDS, playMsg -> {
+                // Wait 30 seconds until after the original message was sent
+                long waitTime = 30 - Duration.between(sent, Instant.now()).getSeconds();
+
+                if (!gameState.potentialHomer()) return;
+
+                playMsg.editMessageEmbeds(message)
+                    .delay(waitTime, TimeUnit.SECONDS)
+                    .flatMap(playMsg1 -> {
+                        // Get the embed
+                        MessageEmbed embed = playMsg.getEmbeds().get(0);
+                        // add a new field
+                        EmbedBuilder builder = new EmbedBuilder(embed);
+
+                        // Check potential homers
+                        String homerDescription = gameState.homerDescription();
+
+                        // find the "Homer Info" field
+                        for (var i = 0; i < embed.getFields().size(); i++) {
+                            var field = embed.getFields().get(i);
+                            if (!Objects.equals(field.getName(), "Homer Info")) continue;
+
+                            // Edit field
+                            var newField = new MessageEmbed.Field("Homer Info", homerDescription, false);
+                            embed.getFields().set(i, newField);
+                        }
+
+                        return playMsg1.editMessageEmbeds(builder.build());
+                    })
+                    .queue();
+            });
         }
     }
 
