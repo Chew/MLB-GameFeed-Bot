@@ -406,13 +406,14 @@ public class GameFeedHandler {
                         String homerDescription = gameState.homerDescription();
 
                         // find the "Homer Info" field
-                        for (var i = 0; i < embed.getFields().size(); i++) {
-                            var field = embed.getFields().get(i);
+                        var fields = embed.getFields();
+                        for (var i = 0; i < fields.size(); i++) {
+                            var field = fields.get(i);
                             if (!Objects.equals(field.getName(), "Homer Info")) continue;
 
                             // Edit field
                             var newField = new MessageEmbed.Field("Homer Info", homerDescription, false);
-                            embed.getFields().set(i, newField);
+                            fields.set(i, newField);
                         }
 
                         return playMsg1.editMessageEmbeds(builder.build());
