@@ -200,7 +200,7 @@ public class GameFeedHandler {
                     embed.setColor(0x427ee6);
                 } else if (hasOut) {
                     embed.setColor(0xd23d33);
-                } else if (recentState.currentPlayDescription().contains("walks")) {
+                } else if (recentState.currentPlayDescription().contains("walks") || recentState.currentPlayDescription().contains("hit by pitch")) {
                     embed.setColor(0x4fc94f);
                 } else {
                     embed.setColor(0x979797);
