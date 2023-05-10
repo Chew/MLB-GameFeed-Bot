@@ -172,7 +172,6 @@ public record GameState(JSONObject gameData) {
         boolean isHomer = currentPlayDescription().contains("homers") || currentPlayDescription().contains("grand slam");
 
         // now we see if it was away/home. if it's away, we'll see if it was a homer at their home field
-        boolean awayTeam = inningState().equals("Top");
         String awayAbbrev = gameData().getJSONObject("gameData").getJSONObject("teams").getJSONObject("away").getString("abbreviation");
         boolean awayBpHomer = false;
         String awayBallpark = null;
@@ -195,7 +194,7 @@ public record GameState(JSONObject gameData) {
 
         return "This %s a homer at %s / 30 ballparks%s.".formatted(
             isHomer ? "would also be" : "would've been", ballparks,
-            awayTeam ? (", %s %s".formatted(awayBpHomer ? "including" : "but not", awayBallpark)) : ""
+            ballparks > 0 ? (", %s %s".formatted(awayBpHomer ? "including" : "but not", awayBallpark)) : ""
         );
     }
 
