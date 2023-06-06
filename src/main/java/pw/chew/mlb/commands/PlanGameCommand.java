@@ -29,7 +29,9 @@ import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class PlanGameCommand extends SlashCommand {
@@ -269,16 +271,19 @@ public class PlanGameCommand extends SlashCommand {
     }
 
     private static void cleanDuplicates(List<String> list) {
-        for (int i = 0; i < list.size(); i++) {
-            String radioTeam = list.get(i).split(" - ")[0];
-            for (int j = 0; j < list.size(); j++) {
-                if (i == j) continue;
-                String radioTeam2 = list.get(j).split(" - ")[0];
-                if (radioTeam.equals(radioTeam2)) {
-                    list.set(i, list.get(i) + ", " + list.get(j).split(" - ")[1]);
-                    list.remove(j);
-                }
-            }
+        // map of team name -> list of broadcasts
+        Map<String, List<String>> teamBroadcasts = new HashMap<>();
+        for (String s : list) {
+            String[] split = s.split(" - ");
+            String team = split[0];
+            String broadcast = split[1];
+
+            if (!teamBroadcasts.containsKey(team)) teamBroadcasts.put(team, new ArrayList<>());
+            teamBroadcasts.get(team).add(broadcast);
+        }
+        list.clear();
+        for (Map.Entry<String, List<String>> entry : teamBroadcasts.entrySet()) {
+            list.add("%s - %s".formatted(entry.getKey(), String.join(", ", entry.getValue())));
         }
     }
 
