@@ -63,6 +63,10 @@ public class RestClient {
             .addHeader("User-Agent", userAgent)
             .build();
 
+        if (!url.contains("?")) {
+            url = url + "?";
+        }
+
         // Only get the URL up to the first '?'
         String key = url.substring(0, url.indexOf('?'));
 

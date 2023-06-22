@@ -8,6 +8,7 @@ import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.entities.channel.unions.GuildChannelUnion;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
+import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.interactions.commands.Command;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
@@ -18,6 +19,7 @@ import net.dv8tion.jda.api.utils.messages.MessageCreateData;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import pw.chew.chewbotcca.util.RestClient;
+import pw.chew.mlb.objects.ImageUtil;
 import pw.chew.mlb.objects.MLBAPIUtil;
 
 import java.time.OffsetDateTime;
@@ -133,28 +135,41 @@ public class PlanGameCommand extends SlashCommand {
         boolean makeThread = event.optBoolean("thread", false);
         boolean makeEvent = event.optBoolean("event", false);
 
+        event.deferReply(true).queue(interactionHook -> {
+            handle(interactionHook, gamePk, channel, blurb, makeThread, makeEvent);
+        });
+    }
+
+    public void handle(InteractionHook event, String gamePk, GuildChannelUnion channel, GameBlurb blurb, boolean makeThread, boolean makeEvent) {
         if (makeEvent) {
-            String name = blurb.name();
+            // async pathfinding???
+            new Thread(() -> {
+                String name = blurb.name();
 
-            OffsetDateTime start = blurb.time();
-            if (start.isBefore(OffsetDateTime.now(ZoneOffset.UTC))) {
-                start = OffsetDateTime.now(ZoneOffset.UTC).plusSeconds(15);
-            }
+                OffsetDateTime start = blurb.time();
+                if (start.isBefore(OffsetDateTime.now(ZoneOffset.UTC))) {
+                    start = OffsetDateTime.now(ZoneOffset.UTC).plusSeconds(15);
+                }
 
-            try {
-                channel.getGuild().createScheduledEvent(name, "Ballpark", start, start.plus(4, ChronoUnit.HOURS))
-                    .setDescription(blurb.blurbText()).queue();
-            } catch (InsufficientPermissionException e) {
-                event.reply("I don't have permission to create events!").setEphemeral(true).queue();
-                    return;
-            }
+                var ev = channel.getGuild().createScheduledEvent(name, blurb.ballpark(), start, start.plus(4, ChronoUnit.HOURS))
+                    .setDescription(blurb.blurbText());
+
+                var matchupBanner = ImageUtil.matchUpBanner(blurb.awayId(), blurb.homeId());
+                if (matchupBanner != null) ev = ev.setImage(matchupBanner.asIcon());
+
+                try {
+                    ev.queue();
+                } catch (InsufficientPermissionException e) {
+                    // oh well
+                }
+            }).start();
         }
 
         switch (channel.getType()) {
             case TEXT -> {
                 if (!makeThread) {
                     channel.asTextChannel().sendMessageEmbeds(blurb.blurb()).setActionRow(buildButtons(gamePk)).queue(message -> {
-                        event.reply("Planned game! " + message.getJumpUrl()).setEphemeral(true).queue();
+                        event.editOriginal("Planned game! " + message.getJumpUrl()).queue();
                     });
                     return;
                 }
@@ -165,7 +180,7 @@ public class PlanGameCommand extends SlashCommand {
                             msg.pin().queue();
                         } catch (InsufficientPermissionException ignored) {
                         }
-                        event.reply("Planned game! " + threadChannel.getAsMention()).setEphemeral(true).queue();
+                        event.editOriginal("Planned game! " + threadChannel.getAsMention()).queue();
                     });
                 });
             }
@@ -175,7 +190,7 @@ public class PlanGameCommand extends SlashCommand {
                         forumPost.getMessage().pin().queue();
                     } catch (InsufficientPermissionException ignored) {
                     }
-                    event.reply("Planned game! " + forumPost.getThreadChannel().getAsMention()).setEphemeral(true).queue();
+                    event.editOriginal("Planned game! " + forumPost.getThreadChannel().getAsMention()).queue();
                 });
         }
     }
@@ -295,7 +310,7 @@ public class PlanGameCommand extends SlashCommand {
             this.gamePk = gamePk;
 
             // get da info
-            this.data = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/schedule?language=en&gamePk=%s&hydrate=broadcasts(all),gameInfo,team,probablePitcher(all)&useLatestGames=true&fields=dates,date,games,gameDate,teams,away,probablePitcher,fullName,team,teamName,name,leagueRecord,wins,losses,pct,home,broadcasts,type,name,homeAway,isNational,callSign".formatted(gamePk)))
+            this.data = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/schedule?language=en&gamePk=%s&hydrate=broadcasts(all),gameInfo,team,probablePitcher(all)&useLatestGames=true&fields=dates,date,games,gameDate,teams,away,probablePitcher,fullName,team,teamName,id,name,leagueRecord,wins,losses,pct,home,venue,name,broadcasts,type,name,homeAway,isNational,callSign".formatted(gamePk)))
                 .getJSONArray("dates")
                 .getJSONObject(0)
                 .getJSONArray("games")
@@ -330,10 +345,23 @@ public class PlanGameCommand extends SlashCommand {
                 "Game Link: " + blurb.getUrl();
         }
 
+        public String ballpark() {
+            // teams > home > team > venue > name
+            return data.getJSONObject("teams").getJSONObject("home").getJSONObject("team").getJSONObject("venue").getString("name");
+        }
+
         public OffsetDateTime time() {
             // Format "2023-02-26T20:05:00Z" to OffsetDateTime
             TemporalAccessor accessor = DateTimeFormatter.ISO_OFFSET_DATE_TIME.parse(data.getString("gameDate"));
             return OffsetDateTime.from(accessor);
+        }
+
+        public int homeId() {
+            return data.getJSONObject("teams").getJSONObject("home").getJSONObject("team").getInt("id");
+        }
+
+        public int awayId() {
+            return data.getJSONObject("teams").getJSONObject("away").getJSONObject("team").getInt("id");
         }
     }
 }
