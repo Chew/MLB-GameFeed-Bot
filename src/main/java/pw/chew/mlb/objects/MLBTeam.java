@@ -16,10 +16,18 @@ public record MLBTeam(JSONObject data) {
     }
 
     public int wins() {
+        // ASG Shenanigans
+        if (name().equals("NL All-Stars")) return 44;
+        if (name().equals("AL All-Stars")) return 46;
+
         return record().getInt("wins");
     }
 
     public int losses() {
+        // ASG Shenanigans
+        if (name().equals("NL All-Stars")) return 46;
+        if (name().equals("AL All-Stars")) return 44;
+
         return record().getInt("losses");
     }
 
