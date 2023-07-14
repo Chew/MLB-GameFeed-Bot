@@ -88,7 +88,6 @@ public class MLBAPIUtil {
     public record Teams(JSONArray raw) {
         public List<Command.Choice> asChoices() {
             List<Command.Choice> choices = new ArrayList<>();
-            choices.add(new Command.Choice("All Star Game", 160));
             for (int i = 0; i < raw.length(); i++) {
                 JSONObject team = raw.getJSONObject(i);
                 choices.add(new Command.Choice(team.getString("name"), team.getInt("id")));
