@@ -28,6 +28,21 @@ public record GameState(JSONObject gameData) {
         return gameData().getJSONObject("gameData").getJSONObject("status").getString("abstractGameState");
     }
 
+    /**
+     * Check if a game is canceled. Only minor league games get canceled, postponement is not true for this method.
+     */
+    public boolean isCancelled() {
+        return gameData().getJSONObject("gameData").getJSONObject("status").getString("detailedState").equals("Cancelled");
+    }
+
+    /**
+     * Whether a game is final.
+     * @return true if the game is final, false otherwise
+     */
+    public boolean isFinal() {
+        return gameState().equals("Final");
+    }
+
     public String homeTeam() {
         return gameData().getJSONObject("gameData").getJSONObject("teams").getJSONObject("home").getString("clubName");
     }

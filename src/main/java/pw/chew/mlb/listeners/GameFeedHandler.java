@@ -269,6 +269,11 @@ public class GameFeedHandler {
             }
         }
 
+        if (currentState.isCancelled()) {
+            endGame(gamePk, "\nUnfortunately, this game was cancelled.");
+            return;
+        }
+
         // Build a scorecard embed
         EmbedBuilder scorecardEmbed = new EmbedBuilder();
         scorecardEmbed.setTitle("Scorecard");

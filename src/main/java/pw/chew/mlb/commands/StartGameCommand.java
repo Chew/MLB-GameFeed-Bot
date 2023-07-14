@@ -55,6 +55,11 @@ public class StartGameCommand extends SlashCommand {
         ActiveGame activeGame = new ActiveGame(gamePk, channelId);
         GameState currentState = new GameState(gamePk);
 
+        // Refuse to start if the game is already over
+        if (currentState.isFinal()) {
+            return "This game is already over. Please start a different game.";
+        }
+
         // We can only start games if the start time is less than 30 minutes away
         // E.g. if game starts at 2:30, and the time is 1:59, we cannot start the game
         // But, if it's 2:00, we can start the game
