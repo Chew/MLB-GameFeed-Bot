@@ -141,12 +141,17 @@ public class PlanGameCommand extends SlashCommand {
                 String sport = event.getOption("sport", "1", OptionMapping::getAsString);
                 String input = event.getFocusedOption().getValue();
 
-                if (input.equals("")) {
-                    event.replyChoices(MLBAPIUtil.getTeams(sport).asChoices()).queue();
+                List<Command.Choice> choices;
+                if (input.isBlank()) {
+                    choices = MLBAPIUtil.getTeams(sport).asChoices();
                 } else {
-                    event.replyChoices(MLBAPIUtil.getTeams(sport).potentialChoices(input)).queue();
+                    choices = MLBAPIUtil.getTeams(sport).potentialChoices(input);
                 }
 
+                // Ensure no duplicates and no more than 25 choices
+                choices = choices.stream().distinct().limit(25).toList();
+
+                event.replyChoices(choices).queue();
                 return;
             }
             case "sport" -> {
@@ -171,7 +176,8 @@ public class PlanGameCommand extends SlashCommand {
                     String date = games.getJSONObject(i).getString("date");
 
                     Calendar c1 = Calendar.getInstance(); // today
-                    c1.add(Calendar.DAY_OF_YEAR, -1); // yesterday
+                    // yesterday
+                    c1.add(Calendar.DATE, -1);
 
                     Calendar c2 = Calendar.getInstance();
                     c2.set(
@@ -200,10 +206,8 @@ public class PlanGameCommand extends SlashCommand {
                     }
                 }
 
-                // Only get 25 choices
-                if (choices.size() > 25) {
-                    choices = choices.subList(0, 25);
-                }
+                // Ensure no more than 25 choices, and no duplicates
+                choices = choices.stream().distinct().limit(25).toList();
 
                 event.replyChoices(choices).queue();
 
