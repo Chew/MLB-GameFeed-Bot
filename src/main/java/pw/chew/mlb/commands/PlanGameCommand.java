@@ -106,14 +106,14 @@ public class PlanGameCommand extends SlashCommand {
         switch (channel.getType()) {
             case TEXT -> {
                 if (!makeThread) {
-                    channel.asTextChannel().sendMessageEmbeds(blurb.blurb()).setActionRow(buildButtons(gamePk)).queue(message -> {
+                    channel.asTextChannel().sendMessageEmbeds(blurb.blurb()).setActionRow(buildButtons(gamePk, blurb)).queue(message -> {
                         event.editOriginal("Planned game! " + message.getJumpUrl()).queue();
                     });
                     return;
                 }
 
                 channel.asTextChannel().createThreadChannel(blurb.name()).queue(threadChannel -> {
-                    threadChannel.sendMessageEmbeds(blurb.blurb()).setActionRow(buildButtons(gamePk)).queue(msg -> {
+                    threadChannel.sendMessageEmbeds(blurb.blurb()).setActionRow(buildButtons(gamePk, blurb)).queue(msg -> {
                         try {
                             msg.pin().queue();
                         } catch (InsufficientPermissionException ignored) {
@@ -123,7 +123,7 @@ public class PlanGameCommand extends SlashCommand {
                 });
             }
             case FORUM ->
-                channel.asForumChannel().createForumPost(blurb.name(), MessageCreateData.fromEmbeds(blurb.blurb())).setActionRow(buildButtons(gamePk)).queue(forumPost -> {
+                channel.asForumChannel().createForumPost(blurb.name(), MessageCreateData.fromEmbeds(blurb.blurb())).setActionRow(buildButtons(gamePk, blurb)).queue(forumPost -> {
                     try {
                         forumPost.getMessage().pin().queue();
                     } catch (InsufficientPermissionException ignored) {
@@ -218,12 +218,12 @@ public class PlanGameCommand extends SlashCommand {
         event.replyChoices().queue();
     }
 
-    public static List<Button> buildButtons(String gamePk) {
+    public static List<Button> buildButtons(String gamePk, GameBlurb blurb) {
         return List.of(
             Button.success("plangame:start:"+gamePk, "Start"),
             Button.secondary("plangame:refresh:"+gamePk, "Refresh"),
-            Button.primary("plangame:lineup:"+gamePk+":away", "Away Lineup"),
-            Button.primary("plangame:lineup:"+gamePk+":home", "Home Lineup")
+            Button.primary("plangame:lineup:"+gamePk+":away", blurb.away().name() + " Lineup"),
+            Button.primary("plangame:lineup:"+gamePk+":home", blurb.home().name() + " Lineup")
         );
     }
 

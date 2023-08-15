@@ -18,9 +18,7 @@ public class InteractionHandler extends ListenerAdapter {
             String gamePk = event.getComponentId().split(":")[2];
             switch (action) {
                 case "refresh" -> event.getMessage()
-                    .editMessage(" ")
-                    .setEmbeds(PlanGameCommand.generateGameBlurb(gamePk))
-                    .setActionRow(PlanGameCommand.buildButtons(gamePk))
+                    .editMessageEmbeds(PlanGameCommand.generateGameBlurb(gamePk))
                     .queue((m) -> event.reply("Refreshed!").setEphemeral(true).queue());
                 case "start" -> {
                     String startGame = StartGameCommand.startGame(gamePk, event.getChannel().getId());
