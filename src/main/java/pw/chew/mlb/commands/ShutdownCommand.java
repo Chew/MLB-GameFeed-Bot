@@ -2,6 +2,10 @@ package pw.chew.mlb.commands;
 
 import com.jagrosh.jdautilities.command.Command;
 import com.jagrosh.jdautilities.command.CommandEvent;
+import org.slf4j.LoggerFactory;
+import pw.chew.mlb.listeners.GameFeedHandler;
+
+import static pw.chew.mlb.MLBBot.jda;
 
 public class ShutdownCommand extends Command {
     public ShutdownCommand() {
@@ -13,6 +17,20 @@ public class ShutdownCommand extends Command {
 
     @Override
     protected void execute(CommandEvent event) {
-        event.getChannel().sendMessage("Bye bye!").queue(m -> event.getJDA().shutdown());
+        if (event.getArgs().contains("--now")) {
+            event.getChannel().sendMessage("Bye bye!").queue(m -> shutdown());
+        } else {
+            if (GameFeedHandler.GAME_THREADS.isEmpty()) {
+                event.getChannel().sendMessage("Bye bye!").queue(m -> shutdown());
+            } else {
+                GameFeedHandler.shutdownOnFinish = true;
+                event.getChannel().sendMessage("Waiting for all active games to stop before shutting down. Add `--now` to shut down now safely.").queue();
+            }
+        }
+    }
+
+    public static void shutdown() {
+        LoggerFactory.getLogger(ShutdownCommand.class).info("Shutting down...");
+        jda.shutdown();
     }
 }

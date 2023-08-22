@@ -12,6 +12,7 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import pw.chew.mlb.commands.ShutdownCommand;
 import pw.chew.mlb.objects.ActiveGame;
 import pw.chew.mlb.objects.ChannelConfig;
 import pw.chew.mlb.objects.GameState;
@@ -31,6 +32,7 @@ public class GameFeedHandler {
     private static final Logger logger = LoggerFactory.getLogger(GameFeedHandler.class);
     public final static Map<String, Thread> GAME_THREADS = new HashMap<>();
     public final static List<ActiveGame> ACTIVE_GAMES = new ArrayList<>();
+    public static boolean shutdownOnFinish = false;
 
     /**
      * Adds a game to the active games list.
@@ -71,11 +73,26 @@ public class GameFeedHandler {
         if (currentGames == 1) {
             Thread thread = GAME_THREADS.get(game.gamePk());
             thread.interrupt();
-            GAME_THREADS.remove(game.gamePk());
+            removeThread(game.gamePk());
             logger.debug("Stopped game " + game.gamePk() + " thread");
         }
 
         logger.debug("Removed game " + game.gamePk() + " from the active games list");
+    }
+
+    /**
+     * Removes a thread from GAME_THREADS, with checks.
+     *
+     * @param gamePk The gamePk of the thread to remove.
+     */
+    public static void removeThread(String gamePk) {
+        LoggerFactory.getLogger(GameFeedHandler.class).debug("Removing thread for gamePk " + gamePk);
+
+        GAME_THREADS.remove(gamePk);
+
+        if (GAME_THREADS.isEmpty() && shutdownOnFinish) {
+            ShutdownCommand.shutdown();
+        }
     }
 
     /**
@@ -141,7 +158,7 @@ public class GameFeedHandler {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                     // Shutdown the thread
-                    GAME_THREADS.remove(gamePk);
+                    removeThread(gamePk);
                     return;
                 }
                 continue;
@@ -264,7 +281,7 @@ public class GameFeedHandler {
             } catch (InterruptedException e) {
                 e.printStackTrace();
                 // Shutdown the thread
-                GAME_THREADS.remove(gamePk);
+                removeThread(gamePk);
                 return;
             }
         }
@@ -452,7 +469,7 @@ public class GameFeedHandler {
         ACTIVE_GAMES.removeIf(game -> game.gamePk().equals(gamePk));
 
         // Remove the game thread
-        GAME_THREADS.remove(gamePk);
+        removeThread(gamePk);
     }
 
     /**
