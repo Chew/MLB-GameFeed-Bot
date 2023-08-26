@@ -5,6 +5,7 @@ import com.jagrosh.jdautilities.command.SlashCommand;
 import com.jagrosh.jdautilities.command.SlashCommandEvent;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
+import net.dv8tion.jda.api.interactions.DiscordLocale;
 import net.dv8tion.jda.api.interactions.commands.Command;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
@@ -22,6 +23,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import static pw.chew.mlb.listeners.GameFeedHandler.ACTIVE_GAMES;
 
@@ -29,7 +31,12 @@ public class StartGameCommand extends SlashCommand {
 
     public StartGameCommand() {
         this.name = "startgame";
-        this.help = "Starts a game";
+        this.help = "Starts a currently active MLB game";
+        this.descriptionLocalization = Map.of(
+            DiscordLocale.ENGLISH_US, "Starts a currently active MLB game",
+            DiscordLocale.SPANISH, "Comienza un juego de MLB actualmente activo"
+        );
+
         this.guildOnly = true;
         this.options = Collections.singletonList(
             new OptionData(OptionType.INTEGER, "game", "Which game to listen to", true)

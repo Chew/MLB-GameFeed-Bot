@@ -2,13 +2,20 @@ package pw.chew.mlb.commands;
 
 import com.jagrosh.jdautilities.command.SlashCommand;
 import com.jagrosh.jdautilities.command.SlashCommandEvent;
+import net.dv8tion.jda.api.interactions.DiscordLocale;
 import pw.chew.mlb.listeners.GameFeedHandler;
 import pw.chew.mlb.objects.GameState;
+
+import java.util.Map;
 
 public class ScoreCommand extends SlashCommand {
     public ScoreCommand() {
         this.name = "score";
         this.help = "Shows the score of the current game";
+        this.descriptionLocalization = Map.of(
+            DiscordLocale.ENGLISH_US, "Shows the score of the current game",
+            DiscordLocale.SPANISH, "Muestra la puntuación del juego actual"
+        );
     }
 
     @Override

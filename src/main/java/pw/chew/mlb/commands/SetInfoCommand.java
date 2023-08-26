@@ -6,6 +6,7 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
+import net.dv8tion.jda.api.interactions.DiscordLocale;
 import net.dv8tion.jda.api.interactions.commands.Command;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
@@ -20,6 +21,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 
 import static pw.chew.mlb.MLBBot.TEAMS;
 
@@ -28,6 +30,11 @@ public class SetInfoCommand extends SlashCommand {
     public SetInfoCommand() {
         this.name = "setinfo";
         this.help = "Sets a voice channel name to a specified piece of info.";
+        this.descriptionLocalization = Map.of(
+            DiscordLocale.ENGLISH_US, "Sets a voice channel name to a specified piece of info.",
+            DiscordLocale.SPANISH, "Establece el nombre de un canal de voz en una pieza de información especificada."
+        );
+
         this.guildOnly = true;
         this.userPermissions = new Permission[]{Permission.MANAGE_CHANNEL};
         this.botPermissions = new Permission[]{Permission.MANAGE_CHANNEL};
