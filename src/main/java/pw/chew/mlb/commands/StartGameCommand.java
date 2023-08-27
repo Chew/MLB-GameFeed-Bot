@@ -40,6 +40,7 @@ public class StartGameCommand extends SlashCommand {
         this.guildOnly = true;
         this.options = Collections.singletonList(
             new OptionData(OptionType.INTEGER, "game", "Which game to listen to", true)
+                .setDescriptionLocalization(DiscordLocale.SPANISH, "A qué juego escuchar")
                 .setAutoComplete(true)
         );
     }

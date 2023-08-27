@@ -41,12 +41,19 @@ public class SetInfoCommand extends SlashCommand {
 
         this.options = Arrays.asList(
             new OptionData(OptionType.CHANNEL, "channel", "The channel to set the info in.", true)
+                .setDescriptionLocalization(DiscordLocale.SPANISH, "El canal para establecer la información.")
                 .setChannelTypes(ChannelType.VOICE),
             new OptionData(OptionType.STRING, "team", "What team to grab info for.", true)
+                .setDescriptionLocalization(DiscordLocale.SPANISH, "Qué equipo para obtener información.")
                 .setAutoComplete(true),
             new OptionData(OptionType.STRING, "info", "The info to set the channel name to.", true)
-                .addChoice("Standings (Team: WINS-LOSS, xth in division)", "standings")
-                .addChoice("Next Game (Team: DATE: vs/@ OPP, hh:mm A/PM)", "nextgame")
+                .setDescriptionLocalization(DiscordLocale.SPANISH, "La información para establecer el nombre del canal.")
+                .addChoices(
+                    new Command.Choice("Standings (Team: WINS-LOSS, xth in division)", "standings")
+                        .setNameLocalization(DiscordLocale.SPANISH, "Clasificación (Equipo: WINS-LOSS, xth en división)"),
+                    new Command.Choice("Next Game (Team: DATE: vs/@ OPP, hh:mm A/PM)", "nextgame")
+                        .setNameLocalization(DiscordLocale.SPANISH, "Próximo juego (Equipo: FECHA: vs/@ OPP, hh:mm A/PM)")
+                )
         );
     }
 
