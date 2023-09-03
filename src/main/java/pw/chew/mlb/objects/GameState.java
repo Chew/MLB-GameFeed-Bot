@@ -12,7 +12,7 @@ import java.util.List;
 public record GameState(JSONObject gameData) {
     public GameState(String gamePk) {
         // Do an initial request to get the game state
-        this(new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1.1/game/:id/feed/live?language=en&fields=gameData,game,pk,datetime,dateTime,status,detailedState,abstractGameState,liveData,plays,allPlays,result,description,awayScore,homeScore,event,about,isComplete,count,balls,strikes,outs,playEvents,details,isInPlay,isScoringPlay,description,event,eventType,hitData,launchSpeed,launchAngle,totalDistance,trajectory,hardness,isPitch,atBatIndex,playId,linescore,currentInning,currentInningOrdinal,inningState,linescore,teams,home,name,clubName,abbreviation,runs,away,runs,innings,num,home,runs,away,runs,teams,home,runs,hits,errors,leftOnBase,away,runs,hits,errors,leftOnBase"
+        this(new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1.1/game/:id/feed/live?language=en&fields=gameData,game,pk,datetime,dateTime,status,detailedState,abstractGameState,liveData,plays,allPlays,result,description,awayScore,homeScore,event,about,isComplete,count,balls,strikes,outs,playEvents,details,isInPlay,isScoringPlay,description,event,eventType,hitData,launchSpeed,launchAngle,totalDistance,trajectory,hardness,isPitch,atBatIndex,playId,currentPlay,matchup,batter,fullName,pitcher,fullName,postOnFirst,fullName,postOnSecond,fullName,postOnThird,fullName,linescore,currentInning,currentInningOrdinal,inningState,linescore,teams,home,name,clubName,abbreviation,runs,away,runs,innings,num,home,runs,away,runs,teams,home,runs,hits,errors,leftOnBase,away,runs,hits,errors,leftOnBase"
             .replace(":id", gamePk))));
     }
 
@@ -75,6 +75,37 @@ public record GameState(JSONObject gameData) {
     }
 
     public JSONObject currentPlay() {
+        return gameData.getJSONObject("liveData").getJSONObject("plays").getJSONObject("currentPlay");
+    }
+
+    public String currentPitcher() {
+        return currentPlay().getJSONObject("matchup").getJSONObject("pitcher").getString("fullName");
+    }
+
+    public String currentBatter() {
+        return currentPlay().getJSONObject("matchup").getJSONObject("batter").getString("fullName");
+    }
+
+    public String currentBases() {
+        List<String> bases = new ArrayList<>();
+        if (currentPlay().getJSONObject("matchup").has("postOnFirst")) {
+            bases.add("1st: " + currentPlay().getJSONObject("matchup").getJSONObject("postOnFirst").getString("fullName"));
+        }
+        if (currentPlay().getJSONObject("matchup").has("postOnSecond")) {
+            bases.add("2nd: " + currentPlay().getJSONObject("matchup").getJSONObject("postOnSecond").getString("fullName"));
+        }
+        if (currentPlay().getJSONObject("matchup").has("postOnThird")) {
+            bases.add("3rd: " + currentPlay().getJSONObject("matchup").getJSONObject("postOnThird").getString("fullName"));
+        }
+
+        if (bases.isEmpty()) {
+            return "No one is on base.";
+        }
+
+        return String.join("\n", bases);
+    }
+
+    public JSONObject lastCompletedPlay() {
         for (int i = plays().length() - 1; i >= 0; i--) {
             JSONObject play = plays().getJSONObject(i);
             if (play.getJSONObject("about").getBoolean("isComplete")) {
@@ -85,7 +116,7 @@ public record GameState(JSONObject gameData) {
     }
 
     public String currentPlayDescription() {
-        JSONObject play = currentPlay();
+        JSONObject play = lastCompletedPlay();
 
         if (play == null) {
             return "";
@@ -105,7 +136,7 @@ public record GameState(JSONObject gameData) {
     }
 
     public JSONObject currentHit() {
-        JSONObject currentPlay = currentPlay();
+        JSONObject currentPlay = lastCompletedPlay();
         if (currentPlay == null) {
             return null;
         }
@@ -214,7 +245,7 @@ public record GameState(JSONObject gameData) {
     }
 
     public int atBatIndex() {
-        JSONObject currentPlay = currentPlay();
+        JSONObject currentPlay = lastCompletedPlay();
 
         if (currentPlay == null) {
             return -1;
@@ -224,7 +255,7 @@ public record GameState(JSONObject gameData) {
     }
 
     public boolean currentBallInPlay() {
-        JSONObject currentPlay = currentPlay();
+        JSONObject currentPlay = lastCompletedPlay();
 
         if (currentPlay == null) {
             return false;

@@ -11,10 +11,10 @@ import java.util.Map;
 public class ScoreCommand extends SlashCommand {
     public ScoreCommand() {
         this.name = "score";
-        this.help = "Shows the score of the current game";
+        this.help = "Shows the score and match-ups of the current game";
         this.descriptionLocalization = Map.of(
-            DiscordLocale.ENGLISH_US, "Shows the score of the current game",
-            DiscordLocale.SPANISH, "Muestra la puntuación del juego actual"
+            DiscordLocale.ENGLISH_US, "Shows the score and match-ups of the current game",
+            DiscordLocale.SPANISH, "Muestra la puntuación y los enfrentamientos del juego actual"
         );
     }
 
@@ -34,8 +34,17 @@ public class ScoreCommand extends SlashCommand {
         return String.format("""
                     Score: %s %s - %s %s
                     Inning: %s %s, %s out(s)
+                    
+                    Pitching: %s
+                    Batting: %s
+                    
+                    On Base:
+                    %s
                     """,
             state.awayTeam(), state.awayScore(), state.homeScore(), state.homeTeam(),
-            state.inningState(), state.inningOrdinal(), state.outs());
+            state.inningState(), state.inningOrdinal(), state.outs(),
+            state.currentPitcher(), state.currentBatter(),
+            state.currentBases()
+        );
     }
 }
