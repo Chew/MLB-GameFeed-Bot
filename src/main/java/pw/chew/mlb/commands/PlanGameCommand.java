@@ -24,7 +24,6 @@ import pw.chew.mlb.objects.MLBAPIUtil;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -63,11 +62,6 @@ public class PlanGameCommand extends SlashCommand {
         return blurb.blurb();
     }
 
-    private static MessageEmbed generateGameBlurb(String gamePk, JSONObject game) {
-        GameBlurb blurb = new GameBlurb(gamePk, game);
-        return blurb.blurb();
-    }
-
     @Override
     protected void execute(SlashCommandEvent event) {
         OptionMapping channelMapping = event.getOption("channel");
@@ -83,50 +77,80 @@ public class PlanGameCommand extends SlashCommand {
         boolean makeThread = event.optBoolean("thread", false);
         boolean makeEvent = event.optBoolean("event", false);
 
-        event.deferReply(true).queue(interactionHook -> handle(interactionHook, gamePk, channel, blurb, makeThread, makeEvent));
+        List<String> status = new ArrayList<>();
+        status.add("Planning Game...\n");
+        if (makeEvent) {
+            status.add("Creating Event...");
+        }
+        if (makeThread && channel.getType() != ChannelType.FORUM) {
+            status.add("Creating Thread...");
+        }
+        status.add("Sending Message...");
+
+        event.reply(String.join("\n", status)).setEphemeral(true)
+            .queue(interactionHook -> handle(interactionHook, gamePk, channel, blurb, makeThread, makeEvent, status));
     }
 
-    public void handle(InteractionHook event, String gamePk, GuildChannelUnion channel, GameBlurb blurb, boolean makeThread, boolean makeEvent) {
+    public void handle(InteractionHook event, String gamePk, GuildChannelUnion channel, GameBlurb blurb, boolean makeThread, boolean makeEvent, List<String> status) {
         if (makeEvent) {
             // async pathfinding???
-            new Thread(() -> {
-                String name = blurb.name();
+            String name = blurb.name();
 
-                OffsetDateTime start = blurb.time();
-                if (start.isBefore(OffsetDateTime.now(ZoneOffset.UTC))) {
-                    start = OffsetDateTime.now(ZoneOffset.UTC).plusSeconds(15);
-                }
+            OffsetDateTime start = blurb.time();
+            if (start.isBefore(OffsetDateTime.now(ZoneOffset.UTC))) {
+                start = OffsetDateTime.now(ZoneOffset.UTC).plusSeconds(15);
+            }
 
-                var ev = channel.getGuild().createScheduledEvent(name, blurb.ballpark(), start, start.plus(4, ChronoUnit.HOURS))
+            try {
+                var ev = channel.getGuild().createScheduledEvent(name, blurb.ballpark(), start, start.plusHours(4))
                     .setDescription(blurb.blurbText());
 
                 var matchupBanner = ImageUtil.matchUpBanner(blurb.away().id(), blurb.home().id());
                 if (matchupBanner != null) ev = ev.setImage(matchupBanner.asIcon());
 
-                try {
-                    ev.queue();
-                } catch (InsufficientPermissionException e) {
-                    // oh well
-                }
-            }).start();
+                ev.queue(
+                    ent -> {
+                        status.set(1, "Creating Event... Done!");
+                        event.editOriginal(String.join("\n", status)).queue();
+                    },
+                    fail -> {
+                        status.set(1, "Creating Event... Failed: " + fail.getMessage());
+                        event.editOriginal(String.join("\n", status)).queue();
+                    }
+                );
+            } catch (InsufficientPermissionException e) {
+                status.set(1, "Creating Event... Failed: " + e.getMessage());
+                event.editOriginal(String.join("\n", status)).queue();
+            }
         }
 
         switch (channel.getType()) {
             case TEXT -> {
                 if (!makeThread) {
                     channel.asTextChannel().sendMessageEmbeds(blurb.blurb()).setActionRow(buildButtons(gamePk, blurb)).queue(message -> {
-                        event.editOriginal("Planned game! " + message.getJumpUrl()).queue();
+                        int index = status.indexOf("Sending Message...");
+                        status.set(index, "Sending Message... Done! " + message.getJumpUrl());
+
+                        event.editOriginal(String.join("\n", status)).queue();
                     });
                     return;
                 }
 
                 channel.asTextChannel().createThreadChannel(blurb.name()).queue(threadChannel -> {
+                    int index = status.indexOf("Creating Thread...");
+                    status.set(index, "Creating Thread... Done!");
+                    event.editOriginal(String.join("\n", status)).queue();
+
                     threadChannel.sendMessageEmbeds(blurb.blurb()).setActionRow(buildButtons(gamePk, blurb)).queue(msg -> {
                         try {
                             msg.pin().queue();
                         } catch (InsufficientPermissionException ignored) {
                         }
-                        event.editOriginal("Planned game! " + threadChannel.getAsMention()).queue();
+
+                        int index2 = status.indexOf("Sending Message...");
+                        status.set(index2, "Sending Message... Done! " + threadChannel.getAsMention());
+
+                        event.editOriginal(String.join("\n", status)).queue();
                     });
                 });
             }
@@ -136,7 +160,11 @@ public class PlanGameCommand extends SlashCommand {
                         forumPost.getMessage().pin().queue();
                     } catch (InsufficientPermissionException ignored) {
                     }
-                    event.editOriginal("Planned game! " + forumPost.getThreadChannel().getAsMention()).queue();
+
+                    int index = status.indexOf("Sending Message...");
+                    status.set(index, "Sending Message... Done! " + forumPost.getThreadChannel().getAsMention());
+
+                    event.editOriginal(String.join("\n", status)).queue();
                 });
         }
     }
