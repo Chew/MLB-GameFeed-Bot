@@ -35,6 +35,8 @@ public class ScoreCommand extends SlashCommand {
                     Score: %s %s - %s %s
                     Inning: %s %s, %s out(s)
                     
+                    Summary: %s
+                    
                     Pitching: %s
                     Batting: %s
                     
@@ -43,6 +45,7 @@ public class ScoreCommand extends SlashCommand {
                     """,
             state.awayTeam(), state.awayScore(), state.homeScore(), state.homeTeam(),
             state.inningState(), state.inningOrdinal(), state.outs(),
+            state.summary(),
             state.currentPitcher(), state.currentBatter(),
             state.currentBases()
         );

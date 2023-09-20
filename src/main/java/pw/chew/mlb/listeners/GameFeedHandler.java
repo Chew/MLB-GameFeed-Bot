@@ -287,7 +287,7 @@ public class GameFeedHandler {
         }
 
         if (currentState.isCancelled()) {
-            endGame(gamePk, "\nUnfortunately, this game was cancelled.");
+            endGame(gamePk, currentState, "\nUnfortunately, this game was cancelled.");
             return;
         }
 
@@ -358,7 +358,7 @@ public class GameFeedHandler {
         tableBuilder.codeblock(true);
 
         // Game is over!
-        endGame(gamePk, tableBuilder.build());
+        endGame(gamePk, currentState, tableBuilder.build());
     }
 
     /**
@@ -450,14 +450,27 @@ public class GameFeedHandler {
         }
     }
 
-    public static void endGame(String gamePk, String scorecard) {
+    public static void endGame(String gamePk, GameState currentState, String scorecard) {
         for (ActiveGame game : getGames(gamePk)) {
             GuildChannel gChan = jda.getGuildChannelById(game.channelId());
             if (gChan == null) continue;
 
             GuildMessageChannel channel = (GuildMessageChannel)gChan;
             try {
-                channel.sendMessage("Game Over!\n**Final Scorecard**" + scorecard)
+                if (scorecard.contains("Unfortunately")) {
+                    channel.sendMessage(scorecard).queue();
+                    continue;
+                }
+
+                channel.sendMessage("""
+                    # Game Over!
+                    ## Summary
+                    %s
+                    ## Decisions
+                    %s
+                    ## Final Scorecard
+                    %s
+                    """.formatted(currentState.summary(), currentState.decisions(), scorecard))
                     .setActionRow(Button.link("https://mlb.chew.pw/game/" + gamePk, "View Game"))
                     .queue();
             } catch (InsufficientPermissionException ignored) {

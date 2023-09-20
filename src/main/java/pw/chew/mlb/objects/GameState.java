@@ -12,7 +12,7 @@ import java.util.List;
 public record GameState(JSONObject gameData) {
     public GameState(String gamePk) {
         // Do an initial request to get the game state
-        this(new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1.1/game/:id/feed/live?language=en&fields=gameData,game,pk,datetime,dateTime,status,detailedState,abstractGameState,liveData,plays,allPlays,result,description,awayScore,homeScore,event,about,isComplete,count,balls,strikes,outs,playEvents,details,isInPlay,isScoringPlay,description,event,eventType,hitData,launchSpeed,launchAngle,totalDistance,trajectory,hardness,isPitch,atBatIndex,playId,currentPlay,matchup,batter,fullName,pitcher,fullName,postOnFirst,fullName,postOnSecond,fullName,postOnThird,fullName,linescore,currentInning,currentInningOrdinal,inningState,linescore,teams,home,name,clubName,abbreviation,runs,away,runs,innings,num,home,runs,away,runs,teams,home,runs,hits,errors,leftOnBase,away,runs,hits,errors,leftOnBase"
+        this(new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1.1/game/:id/feed/live?language=en&fields=gameData,game,pk,datetime,dateTime,status,detailedState,abstractGameState,liveData,plays,allPlays,result,description,awayScore,homeScore,event,about,isComplete,count,balls,strikes,outs,playEvents,details,isInPlay,isScoringPlay,description,event,eventType,hitData,launchSpeed,launchAngle,totalDistance,trajectory,hardness,isPitch,atBatIndex,playId,currentPlay,count,outs,matchup,batter,fullName,pitcher,fullName,postOnFirst,fullName,postOnSecond,postOnThird,fullName,linescore,currentInning,currentInningOrdinal,inningState,linescore,teams,home,name,clubName,abbreviation,runs,away,runs,innings,num,home,runs,away,runs,teams,home,runs,hits,errors,leftOnBase,away,runs,hits,errors,leftOnBase,decisions,winner,fullName,id,loser,save,boxscore,teams,away,home,players,stats,pitching,note"
             .replace(":id", gamePk))));
     }
 
@@ -333,6 +333,65 @@ public record GameState(JSONObject gameData) {
                 awayScore(),
                 homeScore(),
                 homeTeam());
+        }
+    }
+
+    /**
+     * Builds the decisions of the game
+     * @return The decisions of the game
+     */
+    public String decisions() {
+        JSONObject decisions = gameData().getJSONObject("liveData").getJSONObject("decisions");
+
+        List<String> response = new ArrayList<>();
+
+        JSONObject awayPlayers = gameData().getJSONObject("liveData").getJSONObject("boxscore").getJSONObject("teams").getJSONObject("away").getJSONObject("players");
+        JSONObject homePlayers = gameData().getJSONObject("liveData").getJSONObject("boxscore").getJSONObject("teams").getJSONObject("home").getJSONObject("players");
+
+        for (String key : decisions.keySet()) {
+            JSONObject decision = decisions.getJSONObject(key);
+            int id = decision.getInt("id");
+            String name = decision.getString("fullName");
+
+            JSONObject player;
+            if (awayPlayers.has("ID" + id)) {
+                player = awayPlayers.getJSONObject("ID" + id);
+            } else {
+                player = homePlayers.getJSONObject("ID" + id);
+            }
+
+            String note = player.getJSONObject("stats").getJSONObject("pitching").getString("note");
+
+            // Capitalize the key
+            String keyCapitalized = key.substring(0, 1).toUpperCase() + key.substring(1);
+
+            response.add("%s: %s %s".formatted(keyCapitalized, name, note));
+        }
+
+        return String.join("\n", response);
+    }
+
+    public String summary() {
+        JSONObject scores = gameData().getJSONObject("liveData").getJSONObject("linescore").getJSONObject("teams");
+        int homeRuns = scores.getJSONObject("home").getInt("runs");
+        int awayRuns = scores.getJSONObject("away").getInt("runs");
+
+        String winning = homeRuns > awayRuns ? homeTeam() : awayTeam();
+        String losing = homeRuns > awayRuns ? awayTeam() : homeTeam();
+
+        String score = homeRuns > awayRuns ? "%s - %s".formatted(homeRuns, awayRuns) : "%s - %s".formatted(awayRuns, homeRuns);
+
+        if (isFinal()) {
+            return "The %s beat the %s, %s.".formatted(winning, losing, score);
+        } else {
+            JSONObject linescore = gameData().getJSONObject("liveData").getJSONObject("linescore");
+            String currentInning = "the %s of the %s".formatted(linescore.getString("inningState"), linescore.getString("currentInningOrdinal"));
+
+            if (awayRuns == homeRuns) {
+                return "The %s are tied with the %s %s at %s.".formatted(awayTeam(), homeTeam(), score, currentInning);
+            } else {
+                return "The %s are leading the %s, %s in %s.".formatted(winning, losing, score, currentInning);
+            }
         }
     }
 }
