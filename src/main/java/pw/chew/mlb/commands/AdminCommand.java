@@ -5,6 +5,7 @@ import com.jagrosh.jdautilities.command.CommandEvent;
 import com.jagrosh.jdautilities.menu.EmbedPaginator;
 import com.jagrosh.jdautilities.menu.Paginator;
 import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.exceptions.PermissionException;
 import org.slf4j.LoggerFactory;
@@ -13,6 +14,7 @@ import pw.chew.mlb.listeners.GameFeedHandler;
 import pw.chew.mlb.objects.ActiveGame;
 import pw.chew.mlb.objects.ChannelConfig;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -40,6 +42,29 @@ public class AdminCommand extends Command {
             config(event);
         } else if (args.startsWith("stats")) {
             botStats(event);
+        } else if (args.startsWith("export")) {
+            export(event);
+        }
+    }
+
+    private void export(CommandEvent event) {
+        List<String> lines = new ArrayList<>();
+        var servers = event.getJDA().getGuilds();
+        lines.add("id,memberCount,name,joinedAt");
+        for (Guild server : servers) {
+            lines.add("%s,%s,%s,%s".formatted(server.getId(), server.getMemberCount(), server.getName(), server.getSelfMember().getTimeJoined().toEpochSecond()));
+        }
+
+        // export to file
+        String fileName = "servers-%s.csv".formatted(System.currentTimeMillis());
+        File file = new File(fileName);
+
+        // write to file
+        try {
+            java.nio.file.Files.write(file.toPath(), lines);
+            event.reply("Exported to file: " + file.getAbsolutePath());
+        } catch (Exception e) {
+            event.reply("Error writing to file: " + e.getMessage());
         }
     }
 

@@ -41,3 +41,4 @@ bin/
 ### Secure Files ###
 bot.properties
 games.db
+servers-*.csv
