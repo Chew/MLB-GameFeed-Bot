@@ -50,7 +50,13 @@ public record GameBlurb(String gamePk, JSONObject data) {
         if (broadcasts == null) broadcasts = new JSONArray();
         for (Object broadcastObj : broadcasts) {
             JSONObject broadcast = (JSONObject) broadcastObj;
-            String team = broadcast.getString("homeAway").equals("away") ? away().name() : home().name();
+
+            String team;
+            if (broadcast.optBoolean("isNational", false)) {
+                team = "National";
+            } else {
+                team = broadcast.getString("homeAway").equals("away") ? away().name() : home().name();
+            }
 
             if (types.length > 0 && !Arrays.asList(types).contains(broadcast.getString("type"))) continue;
             switch (broadcast.getString("type")) {

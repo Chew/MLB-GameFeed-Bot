@@ -278,5 +278,19 @@ public class PlanGameCommand extends SlashCommand {
         for (Map.Entry<String, List<String>> entry : teamBroadcasts.entrySet()) {
             list.add("%s - %s".formatted(entry.getKey(), String.join(", ", entry.getValue())));
         }
+
+        // also clean duplicates inside individual broadcasts
+        for (String s : list) {
+            String[] split = s.split(" - ");
+            String team = split[0];
+            String[] broadcasts = split[1].split(", ");
+
+            List<String> newBroadcasts = new ArrayList<>();
+            for (String broadcast : broadcasts) {
+                if (!newBroadcasts.contains(broadcast)) newBroadcasts.add(broadcast);
+            }
+
+            list.set(list.indexOf(s), "%s - %s".formatted(team, String.join(", ", newBroadcasts)));
+        }
     }
 }
