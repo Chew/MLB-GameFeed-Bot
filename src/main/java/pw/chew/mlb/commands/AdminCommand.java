@@ -5,6 +5,7 @@ import com.jagrosh.jdautilities.command.CommandEvent;
 import com.jagrosh.jdautilities.menu.EmbedPaginator;
 import com.jagrosh.jdautilities.menu.Paginator;
 import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.entities.Activity;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.exceptions.PermissionException;
@@ -44,7 +45,19 @@ public class AdminCommand extends Command {
             botStats(event);
         } else if (args.startsWith("export")) {
             export(event);
+        } else if (args.startsWith("activity")) {
+            activity(event);
         }
+    }
+
+    private void activity(CommandEvent event) {
+        String args = event.getArgs();
+        String type = args.split(" ")[1];
+        String activity = args.split(type)[1].trim();
+
+        Activity newActivity = Activity.of(Activity.ActivityType.valueOf(type.toUpperCase()), activity);
+
+        jda.getPresence().setActivity(newActivity);
     }
 
     private void export(CommandEvent event) {

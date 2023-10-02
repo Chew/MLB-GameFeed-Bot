@@ -35,7 +35,7 @@ public class MLBBot {
     public static final List<JSONObject> TEAMS = new ArrayList<>();
     public static final EventWaiter waiter = new EventWaiter();
 
-    public static void main(String[] args) throws LoginException, IOException {
+    public static void main(String[] args) throws IOException {
         // Load properties into the PropertiesManager
         Properties prop = new Properties();
         prop.load(new FileInputStream("bot.properties"));
@@ -44,7 +44,7 @@ public class MLBBot {
         CommandClientBuilder client = new CommandClientBuilder();
 
         // Set the client settings
-        client.setActivity(Activity.watching("regular season until october 1st!"));
+        client.setActivity(Activity.customStatus("off day! see you tomorrow for WC :)"));
         client.setOwnerId("476488167042580481");
         client.setPrefix("woody!");
 
