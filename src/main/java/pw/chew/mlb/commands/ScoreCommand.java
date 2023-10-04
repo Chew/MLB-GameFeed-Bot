@@ -29,7 +29,7 @@ public class ScoreCommand extends SlashCommand {
     }
 
     public String buildScore(String gamePk) {
-        GameState state = new GameState(gamePk);
+        GameState state = GameState.fromPk(gamePk);
 
         return String.format("""
                     Score: %s %s - %s %s

@@ -17,6 +17,7 @@ import pw.chew.mlb.objects.ActiveGame;
 import pw.chew.mlb.objects.ChannelConfig;
 import pw.chew.mlb.objects.GameState;
 
+import java.awt.Color;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -141,28 +142,58 @@ public class GameFeedHandler {
             return;
         }
 
-        GameState currentState = new GameState(gamePk);
+        GameState currentState = GameState.fromPk(gamePk);
         List<JSONObject> postedAdvisories = currentState.gameAdvisories();
 
 //        boolean canEdit = channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_CHANNEL);
 
         // Start the looping thread until the game is stopped
+        int fails = 0;
         while (!currentState.gameState().equals("Final")) {
-            GameState recentState = new GameState(gamePk);
+            GameState recentState = GameState.fromPk(gamePk);
 
             if (recentState.failed()) {
-                logger.warn("Failed to get game state for gamePk: " + gamePk + "! Retrying in 3s...");
+                int retryIn = fails + 3;
+                retryIn = Math.min(20, retryIn);
+
+                logger.warn("Failed to get game state for gamePk: %s! Retrying in %ss...".formatted(gamePk, retryIn));
+                if (fails == 5) {
+                    EmbedBuilder notifier = new EmbedBuilder()
+                        .setTitle("Connection Problems")
+                        .setDescription("""
+                            We're having trouble connecting to MLB's servers.
+                            We've tried 5 times now to connect, but we're still having issues.
+                            
+                            Once we reconnect, we'll let you know.
+                            """)
+                        .setColor(Color.RED);
+
+                    sendMessages(notifier.build(), gamePk);
+                }
                 try {
                     //noinspection BusyWait
-                    Thread.sleep(3000);
+                    Thread.sleep(retryIn * 1000L);
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                     // Shutdown the thread
                     removeThread(gamePk);
                     return;
                 }
+                fails++;
                 continue;
             }
+            if (fails > 5) {
+                EmbedBuilder notifier = new EmbedBuilder()
+                    .setTitle("Connection Restored")
+                    .setDescription("""
+                        We've reconnected to MLB's servers.
+                        We'll continue to update you on the game.
+                        """)
+                    .setColor(Color.GREEN);
+
+                sendMessages(notifier.build(), gamePk);
+            }
+            fails = 0;
 
             // Check to see if the game has changed state
             if (recentState.gameState().equals("Final")) {

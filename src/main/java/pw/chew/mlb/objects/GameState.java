@@ -1,6 +1,8 @@
 package pw.chew.mlb.objects;
 
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 import pw.chew.chewbotcca.util.RestClient;
 
@@ -10,10 +12,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 public record GameState(JSONObject gameData) {
-    public GameState(String gamePk) {
-        // Do an initial request to get the game state
-        this(new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1.1/game/:id/feed/live?language=en&fields=gameData,game,pk,datetime,dateTime,status,detailedState,abstractGameState,liveData,plays,allPlays,result,description,awayScore,homeScore,event,about,isComplete,count,balls,strikes,outs,playEvents,details,isInPlay,isScoringPlay,description,event,eventType,hitData,launchSpeed,launchAngle,totalDistance,trajectory,hardness,isPitch,atBatIndex,playId,currentPlay,count,outs,matchup,batter,fullName,pitcher,fullName,postOnFirst,fullName,postOnSecond,postOnThird,fullName,linescore,currentInning,currentInningOrdinal,inningState,linescore,teams,home,name,clubName,abbreviation,runs,away,runs,innings,num,home,runs,away,runs,teams,home,runs,hits,errors,leftOnBase,away,runs,hits,errors,leftOnBase,decisions,winner,fullName,id,loser,save,boxscore,teams,away,home,players,stats,pitching,note"
-            .replace(":id", gamePk))));
+    @NotNull
+    public static GameState fromPk(String gamePk) {
+        String res = RestClient.get("https://statsapi.mlb.com/api/v1.1/game/:id/feed/live?language=en&fields=gameData,game,pk,datetime,dateTime,status,detailedState,abstractGameState,liveData,plays,allPlays,result,description,awayScore,homeScore,event,about,isComplete,count,balls,strikes,outs,playEvents,details,isInPlay,isScoringPlay,description,event,eventType,hitData,launchSpeed,launchAngle,totalDistance,trajectory,hardness,isPitch,atBatIndex,playId,currentPlay,count,outs,matchup,batter,fullName,pitcher,fullName,postOnFirst,fullName,postOnSecond,postOnThird,fullName,linescore,currentInning,currentInningOrdinal,inningState,linescore,teams,home,name,clubName,abbreviation,runs,away,runs,innings,num,home,runs,away,runs,teams,home,runs,hits,errors,leftOnBase,away,runs,hits,errors,leftOnBase,decisions,winner,fullName,id,loser,save,boxscore,teams,away,home,players,stats,pitching,note"
+            .replace(":id", gamePk));
+
+        try {
+            JSONObject json = new JSONObject(res);
+
+            return new GameState(json);
+        } catch (JSONException e) {
+            return new GameState(new JSONObject());
+        }
     }
 
     public boolean failed() {

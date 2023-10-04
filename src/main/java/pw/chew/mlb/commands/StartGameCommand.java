@@ -61,7 +61,7 @@ public class StartGameCommand extends SlashCommand {
 
         // Start a new thread
         ActiveGame activeGame = new ActiveGame(gamePk, channelId);
-        GameState currentState = new GameState(gamePk);
+        GameState currentState = GameState.fromPk(gamePk);
 
         // Refuse to start if the game is already over
         if (currentState.isFinal()) {
@@ -131,7 +131,7 @@ public class StartGameCommand extends SlashCommand {
 
         // Start a new thread
         ActiveGame activeGame = new ActiveGame(gamePk, event.getTextChannel().getId());
-        GameState currentState = new GameState(gamePk);
+        GameState currentState = GameState.fromPk(gamePk);
 
         event.getChannel().sendMessage("Starting game with gamePk: " + gamePk + "\n" +
             currentState.awayTeam() + " @ " + currentState.homeTeam() + " at " +
