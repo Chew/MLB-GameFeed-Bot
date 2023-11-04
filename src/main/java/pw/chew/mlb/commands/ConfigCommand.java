@@ -8,20 +8,11 @@ import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
-import org.mapdb.DB;
-import org.mapdb.DBMaker;
-import org.mapdb.HTreeMap;
-import org.mapdb.Serializer;
 import pw.chew.mlb.objects.ChannelConfig;
 
 import java.util.Arrays;
 
 public class ConfigCommand extends SlashCommand {
-    private static final DB db = DBMaker.fileDB("channels.db").fileMmapEnable().closeOnJvmShutdown().checksumHeaderBypass().make();
-    public static final HTreeMap<String, ChannelConfig> channelsMap = db
-        .hashMap("channels", Serializer.STRING, new ChannelConfig.EntrySerializer())
-        .createOrOpen();
-
     public ConfigCommand() {
         this.name = "config";
         this.help = "Configure MLB Bot for this channel";
@@ -42,9 +33,9 @@ public class ConfigCommand extends SlashCommand {
 
         @Override
         protected void execute(SlashCommandEvent event) {
-            ChannelConfig config = channelsMap.get(event.getChannel().getId());
+            ChannelConfig config = ChannelConfig.getConfig(event.getChannel().getId(), false);
             if (config == null) {
-                event.reply("This channel is has not been configured, and is using default settings. Run `/config set` to get started.").setEphemeral(true).queue();
+                event.reply("This channel has not been configured, and is using default settings. Run `/config set` to get started.").setEphemeral(true).queue();
                 return;
             }
 
@@ -70,29 +61,24 @@ public class ConfigCommand extends SlashCommand {
             this.userPermissions = new Permission[]{Permission.MANAGE_CHANNEL};
             this.options = Arrays.asList(
                 new OptionData(OptionType.BOOLEAN, "only_scoring_plays", "Only show scoring plays"),
-                new OptionData(OptionType.BOOLEAN, "game_advisories", "Show game advisories"),
-                new OptionData(OptionType.INTEGER, "reach_delay", "Delay for reach (non strikeout/walk)"),
-                new OptionData(OptionType.INTEGER, "k_or_bb_delay", "Delay for strikeout/walk")
+                new OptionData(OptionType.BOOLEAN, "game_advisories", "Show game advisories, e.g. pitching changes"),
+                new OptionData(OptionType.INTEGER, "in_play_delay", "Delay for \"In Play\" (non strikeout/walk)"),
+                new OptionData(OptionType.INTEGER, "no_play_delay", "Delay for strikeout/walk, usually appears quicker")
                 /*, new OptionData(OptionType.BOOLEAN, "show_score_on_out_3", "Show score on out 3") */
             );
         }
 
         @Override
         protected void execute(SlashCommandEvent event) {
-            ChannelConfig current = channelsMap.get(event.getChannel().getId());
-            if (current == null) {
-                current = new ChannelConfig();
-            }
+            ChannelConfig current = ChannelConfig.getConfig(event.getChannel().getId(), true);
 
-            ChannelConfig config = new ChannelConfig(
-                event.optBoolean("only_scoring_plays", current.onlyScoringPlays()),
-                event.optBoolean("game_advisories", current.gameAdvisories()),
-                event.getOption("reach_delay", current.inPlayDelay(), OptionMapping::getAsInt),
-                event.getOption("k_or_bb_delay", current.noPlayDelay(), OptionMapping::getAsInt),
-                event.optBoolean("show_score_on_out_3", current.showScoreOnOut3())
-            );
+            current.update("OnlyScoringPlays", event.optBoolean("only_scoring_plays", current.onlyScoringPlays()));
+            current.update("GameAdvisories", event.optBoolean("game_advisories", current.gameAdvisories()));
+            current.update("InPlayDelay", event.getOption("in_play_delay", current.inPlayDelay(), OptionMapping::getAsInt));
+            current.update("NoPlayDelay", event.getOption("no_play_delay", current.noPlayDelay(), OptionMapping::getAsInt));
+            //current.update("showScoreOnOut3", event.optBoolean("show_score_on_out_3", current.showScoreOnOut3()));
 
-            channelsMap.put(event.getChannel().getId(), config);
+            current.saveData();
 
             event.reply("Configuration updated!").setEphemeral(true).queue();
         }

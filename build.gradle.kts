@@ -1,6 +1,7 @@
 plugins {
     id("java")
     application
+    kotlin("jvm") version "1.6.10"
 }
 
 group = "pw.chew"
@@ -22,7 +23,9 @@ dependencies {
     implementation("pw.chew", "jda-chewtils", "2.0-SNAPSHOT")
     implementation("org.json", "json", "20230227")
     implementation("ch.qos.logback", "logback-classic", "1.4.5")
+    implementation("mysql", "mysql-connector-java", "8.0.28")
     implementation("org.mapdb", "mapdb", "3.0.9")
+    implementation("org.hibernate", "hibernate-core", "5.6.5.Final")
     implementation("com.github.ben-manes.caffeine", "caffeine", "3.1.0")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.1")
@@ -31,6 +34,11 @@ dependencies {
 
 tasks.getByName<Test>("test") {
     useJUnitPlatform()
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
+    kotlinOptions.jvmTarget = "17"
+    kotlinOptions.apiVersion = "1.6"
 }
 
 application {

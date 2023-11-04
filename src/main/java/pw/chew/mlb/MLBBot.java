@@ -10,6 +10,7 @@ import net.dv8tion.jda.api.entities.Activity;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import pw.chew.chewbotcca.util.DatabaseHelper;
 import pw.chew.chewbotcca.util.RestClient;
 import pw.chew.mlb.commands.AdminCommand;
 import pw.chew.mlb.commands.ConfigCommand;
@@ -40,11 +41,16 @@ public class MLBBot {
         Properties prop = new Properties();
         prop.load(new FileInputStream("bot.properties"));
 
+        // Initialize Database for storage
+        logger.info("Connecting to database...");
+        DatabaseHelper.openConnection();
+        logger.info("Connected!");
+
         // Initialize the waiter and client
         CommandClientBuilder client = new CommandClientBuilder();
 
         // Set the client settings
-        client.setActivity(Activity.customStatus("off day! see you tomorrow for WC :)"));
+        client.setActivity(Activity.customStatus("Thank you everyone for an amazing season. Lot of new features planned for 2024. Stay tuned :)"));
         client.setOwnerId("476488167042580481");
         client.setPrefix("woody!");
 

@@ -1,55 +1,117 @@
 package pw.chew.mlb.objects;
 
-import org.jetbrains.annotations.NotNull;
-import org.mapdb.DataInput2;
-import org.mapdb.DataOutput2;
-import org.mapdb.Serializer;
-import pw.chew.mlb.commands.ConfigCommand;
+import org.hibernate.Transaction;
+import org.slf4j.LoggerFactory;
+import pw.chew.chewbotcca.util.DatabaseHelper;
+import pw.chew.mlb.models.Channel;
 
-import java.io.IOException;
-import java.io.Serializable;
+import java.util.HashMap;
 
-/**
- * A record class for storing channel configs.
- * @param onlyScoringPlays Whether to only show scoring plays
- * @param gameAdvisories Whether to show game advisories
- * @param inPlayDelay The amount of time in seconds to delay an in-play ball (non strikeout/walk) before showing it. Default 13.
- * @param noPlayDelay The amount of time in seconds to delay a strikeout/walk before showing it. Default 18.
- * @param showScoreOnOut3 Whether to show the score when the third out is recorded. Default true.
- */
-public record ChannelConfig(boolean onlyScoringPlays, boolean gameAdvisories, int inPlayDelay, int noPlayDelay, boolean showScoreOnOut3)
-    implements Serializable {
-    public ChannelConfig() {
-        this(false, true, 13, 18, true);
+public class ChannelConfig {
+    static final HashMap<String, ChannelConfig> cache = new HashMap<>();
+    final Channel data;
+    public ChannelConfig(Channel input) {
+        data = input;
     }
 
     /**
      * Returns the config for the specified channel.
      *
-     * @param channelId the channel ID to get the config for
+     * @param id the channel ID to get the config for
+     * @param createIfNotExists whether to create the config if it doesn't exist
      * @return the config for the specified channel
      */
-    public static ChannelConfig getConfig(String channelId) {
-        ChannelConfig config = ConfigCommand.channelsMap.get(channelId);
-        if (config == null) {
-            config = new ChannelConfig();
+    public static ChannelConfig getConfig(String id, boolean createIfNotExists) {
+        if (cache.containsKey(id)) {
+            return cache.get(id);
+        } else {
+            return retrieveChannel(id, createIfNotExists);
         }
-        return config;
     }
 
-    public static class EntrySerializer implements Serializer<ChannelConfig>, Serializable {
-        @Override
-        public void serialize(@NotNull DataOutput2 out, @NotNull ChannelConfig value) throws IOException {
-            out.writeBoolean(value.onlyScoringPlays());
-            out.writeBoolean(value.gameAdvisories());
-            out.writeInt(value.inPlayDelay());
-            out.writeInt(value.noPlayDelay());
-            out.writeBoolean(value.showScoreOnOut3());
-        }
+    public static ChannelConfig getConfig(String id) {
+        return getConfig(id, true);
+    }
 
-        @Override
-        public ChannelConfig deserialize(@NotNull DataInput2 input, int available) throws IOException {
-            return new ChannelConfig(input.readBoolean(), input.readBoolean(), input.readInt(), input.readInt(), input.readBoolean());
+    /**
+     * Get a channel from the cache, and only the cache.
+     * Don't attempt retrieving it.
+     * @param id the channel ID
+     * @return a possibly null channel
+     */
+    public static ChannelConfig getChannelIfCached(String id) {
+        return cache.get(id);
+    }
+
+    /**
+     * Retrieve server info
+     * @param channelId the server id
+     * @return a server settings
+     */
+    public static ChannelConfig retrieveChannel(String channelId, boolean createIfNotExists) {
+        long id = Long.parseLong(channelId);
+        var session = DatabaseHelper.getSessionFactory().openSession();
+        Channel server = session.find(Channel.class, id);
+        if (server == null && !createIfNotExists) {
+            return null;
         }
+        if (server == null) {
+            Transaction trans = session.beginTransaction();
+            server = new Channel();
+            server.setId(id);
+            session.save(server);
+            trans.commit();
+        }
+        session.close();
+        ChannelConfig settings = new ChannelConfig(server);
+        cache.put(channelId, settings);
+        LoggerFactory.getLogger(ChannelConfig.class).debug("Saving " + id + " to channel cache");
+        return settings;
+    }
+
+    public static ChannelConfig retrieveChannel(String channelId) {
+        return retrieveChannel(channelId, false);
+    }
+
+    public void update(String key, boolean val) {
+        data.setBoolean(key, val);
+    }
+
+    public void update(String key, int val) {
+        data.setInt(key, val);
+    }
+
+    public void saveData() {
+        var session = DatabaseHelper.getSessionFactory().openSession();
+        session.beginTransaction();
+        session.update(data);
+        session.getTransaction().commit();
+        session.close();
+        cache.put(getId(), new ChannelConfig(data));
+        LoggerFactory.getLogger(ChannelConfig.class).debug("Saved " + getId() + " to database, and updating cache");
+    }
+
+    public String getId() {
+        return data.getId() + "";
+    }
+
+    public boolean onlyScoringPlays() {
+        return data.getOnlyScoringPlays();
+    }
+
+    public boolean gameAdvisories() {
+        return data.getGameAdvisories();
+    }
+
+    public int inPlayDelay() {
+        return data.getInPlayDelay();
+    }
+
+    public int noPlayDelay() {
+        return data.getNoPlayDelay();
+    }
+
+    public boolean showScoreOnOut3() {
+        return data.getShowScoreOnOut3();
     }
 }

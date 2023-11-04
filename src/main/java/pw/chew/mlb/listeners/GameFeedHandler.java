@@ -43,6 +43,8 @@ public class GameFeedHandler {
      */
     public static void addGame(ActiveGame game) {
         ACTIVE_GAMES.add(game);
+        // make sure config is cached
+        ChannelConfig.getConfig(game.channelId());
 
         if (!GAME_THREADS.containsKey(game.gamePk())) {
             Thread thread = new Thread(() -> runGame(game.gamePk()), "Game-" + game.gamePk());

@@ -2,7 +2,6 @@ package pw.chew.mlb.commands;
 
 import com.jagrosh.jdautilities.command.Command;
 import com.jagrosh.jdautilities.command.CommandEvent;
-import com.jagrosh.jdautilities.menu.EmbedPaginator;
 import com.jagrosh.jdautilities.menu.Paginator;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.Activity;
@@ -13,7 +12,6 @@ import org.slf4j.LoggerFactory;
 import pw.chew.mlb.MLBBot;
 import pw.chew.mlb.listeners.GameFeedHandler;
 import pw.chew.mlb.objects.ActiveGame;
-import pw.chew.mlb.objects.ChannelConfig;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -39,8 +37,6 @@ public class AdminCommand extends Command {
 
         if (args.startsWith("games")) {
             activeGames(event);
-        } else if (args.startsWith("config")) {
-            config(event);
         } else if (args.startsWith("stats")) {
             botStats(event);
         } else if (args.startsWith("export")) {
@@ -79,27 +75,6 @@ public class AdminCommand extends Command {
         } catch (Exception e) {
             event.reply("Error writing to file: " + e.getMessage());
         }
-    }
-
-    private void config(CommandEvent event) {
-        var config = new EmbedPaginator.Builder()
-            .waitOnSinglePage(false)
-            .setFinalAction(m -> {
-                try {
-                    m.clearReactions().queue();
-                } catch(PermissionException ignored) { }
-            })
-            .setEventWaiter(MLBBot.waiter)
-            .setTimeout(1, TimeUnit.MINUTES)
-            .clearItems();
-
-        for (String key : ConfigCommand.channelsMap.keySet()) {
-            ChannelConfig channelConfig = ConfigCommand.channelsMap.get(key);
-            if (channelConfig == null) continue;
-            config.addItems(ConfigCommand.ConfigGetSubCommand.buildConfigEmbed(channelConfig, key));
-        }
-
-        config.setText("There are %s total configs".formatted(ConfigCommand.channelsMap.size())).build().display(event.getChannel());
     }
 
     public void activeGames(CommandEvent event) {
