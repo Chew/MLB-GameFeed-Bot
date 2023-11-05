@@ -69,7 +69,7 @@ public record GameState(JSONObject gameData) {
     }
 
     public int inning() {
-        return lineScore().getInt("currentInning");
+        return lineScore().optInt("currentInning", 0);
     }
 
     public String inningOrdinal() {

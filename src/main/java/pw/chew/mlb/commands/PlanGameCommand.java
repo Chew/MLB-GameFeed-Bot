@@ -27,6 +27,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -171,6 +172,16 @@ public class PlanGameCommand extends SlashCommand {
 
     @Override
     public void onAutoComplete(CommandAutoCompleteInteractionEvent event) {
+        event.replyChoices(handleAutoComplete(event)).queue();
+    }
+
+    /**
+     * Handles auto complete for: teams (MLB), sports, and dates (for the team)
+     *
+     * @param event the event
+     * @return a list of choices, maybe empty, maybe 1 choice, maybe 25 choices, who knows.
+     */
+    public static List<Command.Choice> handleAutoComplete(CommandAutoCompleteInteractionEvent event) {
         switch (event.getFocusedOption().getName()) {
             case "team" -> {
                 // get current value of sport
@@ -187,20 +198,17 @@ public class PlanGameCommand extends SlashCommand {
                 // Ensure no duplicates and no more than 25 choices
                 choices = choices.stream().distinct().limit(25).toList();
 
-                event.replyChoices(choices).queue();
-                return;
+                return choices;
             }
             case "sport" -> {
-                event.replyChoices(MLBAPIUtil.getSports().asChoices()).queue();
-                return;
+                return MLBAPIUtil.getSports().asChoices();
             }
             case "date" -> {
                 int teamId = event.getOption("team", -1, OptionMapping::getAsInt);
                 String sport = event.getOption("sport", "1", OptionMapping::getAsString);
 
                 if (teamId == -1) {
-                    event.replyChoices(new Command.Choice("Please select a team first!", -1)).queue();
-                    return;
+                    return Collections.singletonList(new Command.Choice("Please select a team first!", -1));
                 }
 
                 JSONArray games = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/schedule?lang=en&sportId=%S&season=2023&teamId=%S&fields=dates,date,games,gamePk,teams,away,team,teamName,id&hydrate=team".formatted(sport, teamId)))
@@ -245,13 +253,11 @@ public class PlanGameCommand extends SlashCommand {
                 // Ensure no more than 25 choices, and no duplicates
                 choices = choices.stream().distinct().limit(25).toList();
 
-                event.replyChoices(choices).queue();
-
-                return;
+                return choices;
             }
         }
 
-        event.replyChoices().queue();
+        return Collections.emptyList();
     }
 
     public static List<Button> buildButtons(String gamePk, GameBlurb blurb) {
