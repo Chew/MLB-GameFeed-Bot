@@ -13,7 +13,9 @@ import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pw.chew.mlb.commands.ShutdownCommand;
+import pw.chew.mlb.models.Bet;
 import pw.chew.mlb.objects.ActiveGame;
+import pw.chew.mlb.objects.BetHelper;
 import pw.chew.mlb.objects.ChannelConfig;
 import pw.chew.mlb.objects.GameState;
 
@@ -516,6 +518,10 @@ public class GameFeedHandler {
 
         // Remove the game thread
         removeThread(gamePk);
+
+        // Handle bets
+        List<Bet> bets = BetHelper.betsForGame(gamePk);
+        BetHelper.awardWinners(bets, currentState.winningTeam());
     }
 
     /**

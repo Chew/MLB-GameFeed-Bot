@@ -381,6 +381,17 @@ public record GameState(JSONObject gameData) {
         return String.join("\n", response);
     }
 
+    public int winningTeam() {
+        JSONObject scores = gameData().getJSONObject("liveData").getJSONObject("linescore").getJSONObject("teams");
+        int homeRuns = scores.getJSONObject("home").getInt("runs");
+        int awayRuns = scores.getJSONObject("away").getInt("runs");
+
+        JSONObject homeTeam = gameData().getJSONObject("gameData").getJSONObject("teams").getJSONObject("home");
+        JSONObject awayTeam = gameData().getJSONObject("gameData").getJSONObject("teams").getJSONObject("away");
+
+        return (homeRuns > awayRuns ? homeTeam : awayTeam).getInt("id");
+    }
+
     public String summary() {
         JSONObject scores = gameData().getJSONObject("liveData").getJSONObject("linescore").getJSONObject("teams");
         int homeRuns = scores.getJSONObject("home").getInt("runs");
