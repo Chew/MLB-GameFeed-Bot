@@ -14,6 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static pw.chew.mlb.MLBBot.SEASON;
 import static pw.chew.mlb.MLBBot.TEAMS;
 
 public class MLBAPIUtil {
@@ -42,7 +43,7 @@ public class MLBAPIUtil {
         if (teamsCache.getIfPresent(sportId) != null) {
             return teamsCache.getIfPresent(sportId);
         }
-        Teams teams = new Teams(new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/teams?sportIds=%s&season=2023".formatted(sportId))).getJSONArray("teams"));
+        Teams teams = new Teams(new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/teams?sportIds=%s&season=%s".formatted(sportId, SEASON))).getJSONArray("teams"));
         teamsCache.put(sportId, teams);
         return teams;
     }

@@ -36,6 +36,8 @@ public class MLBBot {
     public static final List<JSONObject> TEAMS = new ArrayList<>();
     public static final EventWaiter waiter = new EventWaiter();
 
+    public static final int SEASON = 2024;
+
     public static void main(String[] args) throws IOException {
         // Load properties into the PropertiesManager
         Properties prop = new Properties();
@@ -78,7 +80,7 @@ public class MLBBot {
         RestClient.setClient(jda.getHttpClient());
 
         // Load teams
-        JSONObject teams = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/teams?sportIds=1&season=2023"));
+        JSONObject teams = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/teams?sportIds=1&season=" + SEASON));
 
         for (int i = 0; i < teams.getJSONArray("teams").length(); i++) {
             TEAMS.add(teams.getJSONArray("teams").getJSONObject(i));

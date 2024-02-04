@@ -23,6 +23,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
+import static pw.chew.mlb.MLBBot.SEASON;
 import static pw.chew.mlb.MLBBot.TEAMS;
 
 public class SetInfoCommand extends SlashCommand {
@@ -87,7 +88,7 @@ public class SetInfoCommand extends SlashCommand {
                     divisionAbbreviation += word.substring(0, 1);
                 }
 
-                JSONObject standings = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/standings?leagueId=103,104&season=2023&standingsTypes=regularSeason"));
+                JSONObject standings = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/standings?leagueId=103,104&standingsTypes=regularSeason&season=" + SEASON));
 
                 // Gotta find the team now...
                 JSONArray records = standings.getJSONArray("records");
@@ -122,7 +123,7 @@ public class SetInfoCommand extends SlashCommand {
             case "nextgame" -> {
                 int teamId = teamInfo.getInt("id");
 
-                JSONObject teamSchedule = new JSONObject(RestClient.get(String.format("https://statsapi.mlb.com/api/v1/teams/%s?season=2023&hydrate=nextSchedule", teamId)));
+                JSONObject teamSchedule = new JSONObject(RestClient.get(String.format("https://statsapi.mlb.com/api/v1/teams/%s?season=%s&hydrate=nextSchedule", teamId, SEASON)));
 
                 JSONObject nextGame = null;
 
