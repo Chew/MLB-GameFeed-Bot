@@ -32,6 +32,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static pw.chew.mlb.MLBBot.SEASON;
+
 public class PlanGameCommand extends SlashCommand {
     public PlanGameCommand() {
         this.name = "plangame";
@@ -211,7 +213,7 @@ public class PlanGameCommand extends SlashCommand {
                     return Collections.singletonList(new Command.Choice("Please select a team first!", -1));
                 }
 
-                JSONArray games = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/schedule?lang=en&sportId=%S&season=2023&teamId=%S&fields=dates,date,games,gamePk,teams,away,team,teamName,id&hydrate=team".formatted(sport, teamId)))
+                JSONArray games = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/schedule?lang=en&sportId=%S&season=%s&teamId=%S&fields=dates,date,games,gamePk,teams,away,team,teamName,id&hydrate=team".formatted(sport, SEASON, teamId)))
                     .getJSONArray("dates");
 
                 List<Command.Choice> choices = new ArrayList<>();

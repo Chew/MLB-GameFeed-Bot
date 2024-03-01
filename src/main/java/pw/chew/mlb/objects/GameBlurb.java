@@ -108,10 +108,9 @@ public record GameBlurb(String gamePk, JSONObject data) {
             "Game Link: " + blurb.getUrl();
     }
 
-    // TODO: Handle when not at home ballpark, e.g. Mexico or London
     public String ballpark() {
-        // teams > home > team > venue > name
-        return data.getJSONObject("teams").getJSONObject("home").getJSONObject("team").getJSONObject("venue").getString("name");
+        // venue > name
+        return data.getJSONObject("venue").getString("name");
     }
 
     public OffsetDateTime time() {
