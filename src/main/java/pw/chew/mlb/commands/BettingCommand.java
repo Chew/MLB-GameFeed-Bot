@@ -16,6 +16,7 @@ import pw.chew.mlb.models.Profile;
 import pw.chew.mlb.objects.GameBlurb;
 import pw.chew.mlb.objects.GameState;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,7 +26,8 @@ public class BettingCommand extends SlashCommand {
         this.help = "Bet on a team";
         this.children = new SlashCommand[]{
             new BettingProfileSubCommand(),
-            new BettingBetSubCommand()
+            new BettingBetSubCommand(),
+            new BettingClaimSubCommand()
         };
     }
 
@@ -77,13 +79,84 @@ public class BettingCommand extends SlashCommand {
         }
     }
 
+    public static class BettingClaimSubCommand extends SlashCommand {
+        public BettingClaimSubCommand() {
+            this.name = "claim";
+            this.help = "Claim your free daily credits";
+        }
+
+        @Override
+        protected void execute(SlashCommandEvent event) {
+            Bet recentDailyCredit = getRecentDailyCredit(event.getUser().getIdLong());
+            long lastRecentDaily = 0;
+
+            if (recentDailyCredit != null) {
+                lastRecentDaily = recentDailyCredit.getCreatedAt().getEpochSecond();
+            }
+
+            long now = OffsetDateTime.now().toEpochSecond();
+            long diff = now - lastRecentDaily;
+
+            // must be less than 24 hours
+            if (diff < 86400) {
+                long canClaimAt = lastRecentDaily + 86400;
+
+                event.reply("You already claimed your daily credits! You can claim again <t:" + canClaimAt + ":R>").setEphemeral(true).queue();
+                return;
+            }
+
+            // add daily credit
+            addDailyCredit(event.getUser().getIdLong());
+
+            event.reply("You have claimed your daily credits!").setEphemeral(true).queue();
+        }
+
+        public Bet getRecentDailyCredit(long userId) {
+            var session = DatabaseHelper.getSessionFactory().openSession();
+
+            // get Bets where user_id == userId
+            List<Bet> bets = session.createQuery("from Bet where userId = :userId and kind = :kind and reason = :reason order by createdAt desc", Bet.class)
+                .setParameter("userId", userId)
+                .setParameter("reason", "Daily Credits")
+                .setParameter("kind", BetKind.AUTOMATED)
+                .getResultList();
+
+            session.close();
+
+            if (bets.isEmpty()) {
+                return null;
+            }
+
+            return bets.get(0);
+        }
+
+        public void addDailyCredit(long userId) {
+            var session = DatabaseHelper.getSessionFactory().openSession();
+
+            Bet bet = new Bet();
+            bet.setKind(BetKind.AUTOMATED);
+            bet.setBet(0);
+            bet.setPayout(10);
+            bet.setReason("Daily Credits");
+            bet.setUserId(userId);
+
+            Profile profile = retrieveProfile(userId);
+            profile.setCredits(profile.getCredits() + 10);
+
+            Transaction trans = session.beginTransaction();
+            session.update(profile);
+            session.save(bet);
+            trans.commit();
+        }
+    }
+
     public static class BettingBetSubCommand extends SlashCommand {
         public BettingBetSubCommand() {
             this.name = "bet";
             this.help = "Bet on a team";
             this.options = List.of(
                 new OptionData(OptionType.INTEGER, "team", "Which team to bet on", true, true),
-                new OptionData(OptionType.INTEGER, "game", "Which game to bet on", true, true),
+                new OptionData(OptionType.INTEGER, "date", "Which game to bet on", true, true),
                 new OptionData(OptionType.INTEGER, "amount", "How much to bet. 0 to remove bet.", true, false)
                     .setMinValue(0)
             );
@@ -93,7 +166,7 @@ public class BettingCommand extends SlashCommand {
         protected void execute(SlashCommandEvent event) {
             // options
             int teamId = (int) event.optLong("team", 0);
-            int gamePk = (int) event.optLong("game", 0);
+            int gamePk = (int) event.optLong("date", 0);
             int amount = (int) event.optLong("amount", 0);
 
             // Check the game status
@@ -103,7 +176,7 @@ public class BettingCommand extends SlashCommand {
                 return;
             }
             if (state.inning() > 4) {
-                event.reply("Bets cannot be placed or changed past the 4th inning! To see your bet, run /betting placed").setEphemeral(true).queue();
+                event.reply("Bets cannot be placed or changed past the 4th inning! To see your bet, run `/betting placed`").setEphemeral(true).queue();
                 return;
             }
 
@@ -190,6 +263,18 @@ public class BettingCommand extends SlashCommand {
         @Override
         public void onAutoComplete(CommandAutoCompleteInteractionEvent event) {
             event.replyChoices(PlanGameCommand.handleAutoComplete(event)).queue();
+        }
+    }
+
+    public static class BettingPlacedSubCommand extends SlashCommand {
+        public BettingPlacedSubCommand() {
+            this.name = "placed";
+            this.help = "View your placed bets";
+        }
+
+        @Override
+        protected void execute(SlashCommandEvent event) {
+
         }
     }
 

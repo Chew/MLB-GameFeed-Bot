@@ -1,7 +1,9 @@
 package pw.chew.mlb.objects;
 
 import org.hibernate.Transaction;
+import org.slf4j.LoggerFactory;
 import pw.chew.chewbotcca.util.DatabaseHelper;
+import pw.chew.mlb.listeners.GameFeedHandler;
 import pw.chew.mlb.models.Bet;
 import pw.chew.mlb.models.BetKind;
 
@@ -9,16 +11,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class BetHelper {
-    public static List<Bet> betsForGame(String gamePk) {
+    public static void awardWinners(String gamePk, int winningTeam) {
         var session = DatabaseHelper.getSessionFactory().openSession();
 
         // get all sessions where bet's gamePk is the gamePk
-        return session.createQuery("from Bet where gamePk = :gamePk", Bet.class)
-            .setParameter("gamePk", gamePk)
+        var bets = session.createQuery("from Bet where gamePk = :gamePk", Bet.class)
+            .setParameter("gamePk", Integer.parseInt(gamePk))
             .getResultList();
-    }
 
-    public static void awardWinners(List<Bet> bets, int winningTeam) {
+        LoggerFactory.getLogger(BetHelper.class).debug("Bets for game {}: {}", gamePk, bets.size());
+
+        LoggerFactory.getLogger(BetHelper.class).debug("Winning team: {}", winningTeam);
         int totalPoints = 0;
         int winningPoints = 0;
 
@@ -40,7 +43,6 @@ public class BetHelper {
             }
         }
 
-        var session = DatabaseHelper.getSessionFactory().openSession();
         Transaction trans = session.beginTransaction();
 
         // first let's set all the losers and make sure they lose their points
@@ -54,6 +56,8 @@ public class BetHelper {
             bet.setPayout((int) Math.floor((double) bet.amount() / winningPoints * totalPoints));
             bet.setKind(BetKind.WIN);
         }
+
+        LoggerFactory.getLogger(GameFeedHandler.class).debug("Awarding winners: {}", winningBets);
 
         // save all the bets
         trans.commit();

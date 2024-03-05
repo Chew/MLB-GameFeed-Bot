@@ -520,8 +520,8 @@ public class GameFeedHandler {
         removeThread(gamePk);
 
         // Handle bets
-        List<Bet> bets = BetHelper.betsForGame(gamePk);
-        BetHelper.awardWinners(bets, currentState.winningTeam());
+        LoggerFactory.getLogger(GameFeedHandler.class).debug("Awarding bets for game " + gamePk);
+        BetHelper.awardWinners(gamePk, currentState.winningTeam());
     }
 
     /**
