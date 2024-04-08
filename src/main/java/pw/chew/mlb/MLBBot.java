@@ -52,7 +52,7 @@ public class MLBBot {
         CommandClientBuilder client = new CommandClientBuilder();
 
         // Set the client settings
-        client.setActivity(Activity.customStatus("Spring Training time! We're beta testing new features :) Betting, Spanish support, and more, coming soon!"));
+        client.setActivity(Activity.watching("the 2024 season!"));
         client.setOwnerId("476488167042580481");
         client.setPrefix("woody!");
 
