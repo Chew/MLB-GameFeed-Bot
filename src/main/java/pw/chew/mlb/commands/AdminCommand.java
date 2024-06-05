@@ -43,6 +43,8 @@ public class AdminCommand extends Command {
             export(event);
         } else if (args.startsWith("activity")) {
             activity(event);
+        } else if (args.startsWith("shutdown")) {
+            handleShutdown(event);
         }
     }
 
@@ -141,5 +143,23 @@ public class AdminCommand extends Command {
             ;
 
         event.reply(embed.build());
+    }
+
+    public void handleShutdown(CommandEvent event) {
+        if (event.getArgs().contains("--now")) {
+            event.getChannel().sendMessage("Bye bye!").queue(m -> shutdown());
+        } else {
+            if (GameFeedHandler.GAME_THREADS.isEmpty()) {
+                event.getChannel().sendMessage("Bye bye!").queue(m -> shutdown());
+            } else {
+                GameFeedHandler.shutdownOnFinish = true;
+                event.getChannel().sendMessage("Waiting for all active games to stop before shutting down. Add `--now` to shut down now safely.").queue();
+            }
+        }
+    }
+
+    public static void shutdown() {
+        LoggerFactory.getLogger(AdminCommand.class).info("Shutting down...");
+        jda.shutdown();
     }
 }
