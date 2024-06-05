@@ -20,7 +20,7 @@ import org.json.JSONObject;
 import pw.chew.chewbotcca.util.RestClient;
 import pw.chew.mlb.objects.GameBlurb;
 import pw.chew.mlb.objects.ImageUtil;
-import pw.chew.mlb.objects.MLBAPIUtil;
+import pw.chew.mlb.util.MLBAPIUtil;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;

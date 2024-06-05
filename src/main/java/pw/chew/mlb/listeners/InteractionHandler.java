@@ -5,7 +5,7 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import org.jetbrains.annotations.NotNull;
 import pw.chew.mlb.commands.PlanGameCommand;
 import pw.chew.mlb.commands.StartGameCommand;
-import pw.chew.mlb.objects.MLBAPIUtil;
+import pw.chew.mlb.util.MLBAPIUtil;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -1,4 +1,4 @@
-package pw.chew.mlb.objects;
+package pw.chew.mlb.util;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
