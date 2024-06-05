@@ -59,9 +59,9 @@ public class AdminCommand extends Command {
     private void export(CommandEvent event) {
         List<String> lines = new ArrayList<>();
         var servers = event.getJDA().getGuilds();
-        lines.add("id,memberCount,name,joinedAt");
+        lines.add("id,memberCount,\"name\",joinedAt");
         for (Guild server : servers) {
-            lines.add("%s,%s,%s,%s".formatted(server.getId(), server.getMemberCount(), server.getName(), server.getSelfMember().getTimeJoined().toEpochSecond()));
+            lines.add("%s,%s,\"%s\",%s".formatted(server.getId(), server.getMemberCount(), server.getName(), server.getSelfMember().getTimeJoined().toEpochSecond()));
         }
 
         // export to file
