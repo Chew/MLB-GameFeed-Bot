@@ -3,11 +3,13 @@ package pw.chew.mlb.listeners;
 import com.jagrosh.jdautilities.commons.utils.TableBuilder;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.Logger;
@@ -126,6 +128,22 @@ public class GameFeedHandler {
         for (ActiveGame game : ACTIVE_GAMES) {
             if (game.channelId().equals(channel.getId())) {
                 return game.gamePk();
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Finds the first channel with an ongoing game and returns the score of it.
+     *
+     * @param server The server to get the score from.
+     * @return The score of the first ongoing game in the server.
+     */
+    public static ActiveGame currentServerGame(@NotNull Guild server) {
+        for (ActiveGame game : ACTIVE_GAMES) {
+            if (server.getGuildChannelById(game.channelId()) != null) {
+                return game;
             }
         }
 
