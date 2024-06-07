@@ -6,12 +6,11 @@ import pw.chew.mlb.MLBBot;
 
 /**
  * Emoii come from a server, so it may not render if the bot is not in that server!
- *
  * TODO: A better way to handle these, this is a mess.
  */
 public class TeamEmoji {
     // can't be instantiated
-    private TeamEmoji() {};
+    private TeamEmoji() {}
 
     // emoji by division, alphabetically so people don't get mad lol
 
@@ -23,39 +22,39 @@ public class TeamEmoji {
     public final static CustomEmoji RANGERS = Emoji.fromCustom("rangers", 972745153196470292L, false);
 
     // AMERICAN LEAGUE EAST //
-    public final static CustomEmoji BLUE_JAYS = Emoji.fromCustom("bluejays", 1029965913874780160L, false);
-    public final static CustomEmoji RAYS = Emoji.fromCustom("rays", 1148663077810737213L, false);
+    public final static CustomEmoji BLUE_JAYS = Emoji.fromCustom("bluejays", 972745155742425108L, false);
+    public final static CustomEmoji RAYS = Emoji.fromCustom("rays", 972745154857431100L, false);
     public final static CustomEmoji RED_SOX = Emoji.fromCustom("redsox", 972745153129361448L, false);
-    public final static CustomEmoji ORIOLES = Emoji.fromCustom("orioles", 1029965327989211237L, false);
-    public final static CustomEmoji YANKEES = Emoji.fromCustom("yankees", 1029965894723588136L, false);
+    public final static CustomEmoji ORIOLES = Emoji.fromCustom("orioles", 972745154924511312L, false);
+    public final static CustomEmoji YANKEES = Emoji.fromCustom("yankees", 972745154622554133L, false);
 
     // AMERICAN LEAGUE CENTRAL //
-    public final static CustomEmoji GUARDIANS = Emoji.fromCustom("guardians", 1029965874662219826L, false);
-    public final static CustomEmoji ROYALS = Emoji.fromCustom("royals", 1029965884825014322L, false);
-    public final static CustomEmoji TIGERS = Emoji.fromCustom("tigers", 1029965877866664000L, false);
+    public final static CustomEmoji GUARDIANS = Emoji.fromCustom("guardians", 972745156782600222L, false);
+    public final static CustomEmoji ROYALS = Emoji.fromCustom("royals", 972745154387644476L, false);
+    public final static CustomEmoji TIGERS = Emoji.fromCustom("tigers", 972745152911269938L, false);
     public final static CustomEmoji TWINS = Emoji.fromCustom("twins", 1046992241786376272L, false);
-    public final static CustomEmoji WHITE_SOX = Emoji.fromCustom("whitesox", 1029965693422149632L, false);
+    public final static CustomEmoji WHITE_SOX = Emoji.fromCustom("whitesox", 972745152592506961L, false);
 
     // NATIONAL LEAGUE WEST //
-    public final static CustomEmoji DBACKS = Emoji.fromCustom("dbacks", 972745938651213884L, false);
-    public final static CustomEmoji DODGERS = Emoji.fromCustom("dodgers", 1029965941292933132L, false);
+    public final static CustomEmoji DBACKS = Emoji.fromCustom("dbacks", 1175177772491083776L, false);
+    public final static CustomEmoji DODGERS = Emoji.fromCustom("dodgers", 972745931659300875L, false);
     public final static CustomEmoji GIANTS = Emoji.fromCustom("giants", 972745932825329684L, false);
-    public final static CustomEmoji PADRES = Emoji.fromCustom("padres", 1029965965758312459L, false);
-    public final static CustomEmoji ROCKIES = Emoji.fromCustom("rockies", 1029965938210119740L, false);
+    public final static CustomEmoji PADRES = Emoji.fromCustom("padres", 972745932376530964L, false);
+    public final static CustomEmoji ROCKIES = Emoji.fromCustom("rockies", 972745936147214376L, false);
 
     // NATIONAL LEAGUE EAST //
-    public final static CustomEmoji BRAVES = Emoji.fromCustom("braves", 1029965927812452412L, false);
+    public final static CustomEmoji BRAVES = Emoji.fromCustom("braves", 972745936180760586L, false);
     public final static CustomEmoji MARLINS = Emoji.fromCustom("marlins", 972745926378664006L, false);
     public final static CustomEmoji METS = Emoji.fromCustom("mets", 972745935853613076L, false);
-    public final static CustomEmoji NATIONALS = Emoji.fromCustom("nationals", 972745941247459338L, false);
+    public final static CustomEmoji NATIONALS = Emoji.fromCustom("nationals", 972745940974854206L, false);
     public final static CustomEmoji PHILLIES = Emoji.fromCustom("phillies", 972745932154236999L, false);
 
     // NATIONAL LEAGUE CENTRAL //
     public final static CustomEmoji BREWERS = Emoji.fromCustom("brewers", 972745936910565426L, false);
-    public final static CustomEmoji CUBS = Emoji.fromCustom("cubs", 1029965930995916882L, false);
-    public final static CustomEmoji CARDINALS = Emoji.fromCustom("cardinals", 1029965972393693236L, false);
-    public final static CustomEmoji PIRATES = Emoji.fromCustom("pirates", 1029965962952331286L, false);
-    public final static CustomEmoji REDS = Emoji.fromCustom("reds", 1029965934594642000L, false);
+    public final static CustomEmoji CUBS = Emoji.fromCustom("cubs", 972745935895547914L, false);
+    public final static CustomEmoji CARDINALS = Emoji.fromCustom("cardinals", 972745939708153876L, false);
+    public final static CustomEmoji PIRATES = Emoji.fromCustom("pirates", 972745932229718056L, false);
+    public final static CustomEmoji REDS = Emoji.fromCustom("reds", 972768965921210458L, false);
 
     // UNKNOWN ?? Placeholder too //
     public final static CustomEmoji UNKNOWN = Emoji.fromCustom("unknown", 531601549668122654L, false);
@@ -126,7 +125,7 @@ public class TeamEmoji {
             case "Brewers" -> BREWERS;
             case "Cardinals" -> CARDINALS;
             case "Cubs" -> CUBS;
-            case "Diamondbacks" -> DBACKS;
+            case "D-backs" -> DBACKS;
             case "Dodgers" -> DODGERS;
             case "Giants" -> GIANTS;
             case "Guardians" -> GUARDIANS;
