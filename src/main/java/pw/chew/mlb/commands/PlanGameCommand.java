@@ -21,6 +21,7 @@ import pw.chew.chewbotcca.util.RestClient;
 import pw.chew.mlb.objects.GameBlurb;
 import pw.chew.mlb.objects.ImageUtil;
 import pw.chew.mlb.util.MLBAPIUtil;
+import pw.chew.mlb.util.TeamEmoji;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -260,8 +261,8 @@ public class PlanGameCommand extends SlashCommand {
         return List.of(
             Button.success("plangame:start:"+gamePk, "Start"),
             Button.secondary("plangame:refresh:"+gamePk, "Refresh"),
-            Button.primary("plangame:lineup:"+gamePk+":away", blurb.away().name() + " Lineup"),
-            Button.primary("plangame:lineup:"+gamePk+":home", blurb.home().name() + " Lineup")
+            Button.primary("plangame:lineup:"+gamePk+":away", blurb.away().name() + " Lineup").withEmoji(TeamEmoji.fromClubName(blurb.away().name())),
+            Button.primary("plangame:lineup:"+gamePk+":home", blurb.home().name() + " Lineup").withEmoji(TeamEmoji.fromClubName(blurb.home().name()))
         );
     }
 
