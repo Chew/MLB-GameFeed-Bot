@@ -59,7 +59,7 @@ public class ScoreCommand extends SlashCommand {
                     On Base:
                     %s
                     """,
-            state.awayTeam(), state.awayScore(), state.homeScore(), state.homeTeam(),
+            state.away().clubName(), state.away().runs(), state.home().runs(), state.home().clubName(),
             state.inningState(), state.inningOrdinal(), state.outs(),
             state.summary(),
             state.currentPitcher(), state.currentBatter(),

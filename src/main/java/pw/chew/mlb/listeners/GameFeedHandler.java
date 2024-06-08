@@ -225,7 +225,7 @@ public class GameFeedHandler {
             if (recentState.atBatIndex() >= 0 && !recentState.currentPlayDescription().equals(currentState.currentPlayDescription())) {
                 logger.debug("New play description for gamePk " + gamePk + ": " + recentState.currentPlayDescription());
 
-                boolean scoringPlay = recentState.homeScore() != currentState.homeScore() || recentState.awayScore() != currentState.awayScore();
+                boolean scoringPlay = recentState.home().runs() != currentState.home().runs() || recentState.away().runs() != currentState.away().runs();
                 boolean hasOut = recentState.outs() != currentState.outs() && recentState.outs() > 0;
 
                 EmbedBuilder embed = new EmbedBuilder()
@@ -244,10 +244,10 @@ public class GameFeedHandler {
 
                 // Check if score changed
                 if (scoringPlay) {
-                    boolean homeScored = recentState.homeScore() > currentState.homeScore();
+                    boolean homeScored = recentState.home().runs() > currentState.home().runs();
 
-                    embed.setTitle((homeScored ? recentState.homeTeam() : recentState.awayTeam()) + " scored!");
-                    embed.addField("Score", recentState.awayTeam() + " " + recentState.awayScore() + " - " + recentState.homeScore() + " " + recentState.homeTeam(), true);
+                    embed.setTitle((homeScored ? recentState.home().clubName() : recentState.away().clubName()) + " scored!");
+                    embed.addField("Score", recentState.away().clubName() + " " + recentState.away().runs() + " - " + recentState.home().runs() + " " + recentState.home().clubName(), true);
                 }
 
                 // Check if outs changed. Display if it did.
@@ -260,7 +260,7 @@ public class GameFeedHandler {
                     embed.addField("Outs", recentState.outs() + " (+" + oldOuts + ")", true);
 
                     if (recentState.outs() == 3 && !scoringPlay) {
-                        embed.addField("Score", recentState.awayTeam() + " " + recentState.awayScore() + " - " + recentState.homeScore() + " " + recentState.homeTeam(), true);
+                        embed.addField("Score", recentState.away().clubName() + " " + recentState.away().runs() + " - " + recentState.home().runs() + " " + recentState.home().clubName(), true);
                     }
                 }
 
@@ -299,8 +299,8 @@ public class GameFeedHandler {
                         int awayScore = details.getInt("awayScore");
                         boolean homeScored = homeScore > awayScore;
 
-                        detailEmbed.setAuthor((homeScored ? recentState.homeTeam() : recentState.awayTeam()) + " scored!");
-                        detailEmbed.addField("Score", recentState.awayTeam() + " " + details.getInt("awayScore") + " - " + details.getInt("homeScore") + " " + recentState.homeTeam(), true);
+                        detailEmbed.setAuthor((homeScored ? recentState.home().clubName() : recentState.away().clubName()) + " scored!");
+                        detailEmbed.addField("Score", recentState.away().clubName() + " " + details.getInt("awayScore") + " - " + details.getInt("homeScore") + " " + recentState.home().clubName(), true);
                     }
 
                     queuedAdvisories.add(detailEmbed.build());
@@ -367,8 +367,8 @@ public class GameFeedHandler {
         String[][] tableData = new String[totalInnings + 5][2];
 
         // Add team names
-        tableData[0][0] = currentState.awayTeam();
-        tableData[0][1] = currentState.homeTeam();
+        tableData[0][0] = currentState.away().clubName();
+        tableData[0][1] = currentState.home().clubName();
 
         for (int i = 0; i < totalInnings; i++) {
             JSONObject inning = inningData.getJSONObject(i);

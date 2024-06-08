@@ -79,7 +79,7 @@ public class StartGameCommand extends SlashCommand {
         GameFeedHandler.addGame(activeGame);
 
         return "Starting game with gamePk: " + gamePk + "\n" +
-            currentState.awayTeam() + " @ " + currentState.homeTeam() + " at " +
+            currentState.away().clubName() + " @ " + currentState.home().clubName() + " at " +
             TimeFormat.DATE_TIME_SHORT.format(currentState.officialDate());
     }
 
@@ -134,7 +134,7 @@ public class StartGameCommand extends SlashCommand {
         GameState currentState = GameState.fromPk(gamePk);
 
         event.getChannel().sendMessage("Starting game with gamePk: " + gamePk + "\n" +
-            currentState.awayTeam() + " @ " + currentState.homeTeam() + " at " +
+            currentState.away().clubName() + " @ " + currentState.home().clubName() + " at " +
             TimeFormat.DATE_TIME_SHORT.format(currentState.officialDate())
         ).queue();
 
