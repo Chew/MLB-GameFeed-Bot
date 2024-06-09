@@ -29,15 +29,30 @@ public class InteractionHandler extends ListenerAdapter {
                     var lineup = MLBAPIUtil.getLineup(gamePk, awayHome);
 
                     List<String> friendly = new ArrayList<>();
-                    for (var player : lineup) {
-                        friendly.add(player.friendlyString());
+
+                    friendly.add("# " + event.getButton().getLabel());
+                    friendly.add("The following is the lineup for this team. It is subject to change at any time.");
+                    friendly.add("## Batting Order");
+
+                    var battingOrder = lineup.get("Batting Order");
+
+                    if (battingOrder.isEmpty()) {
+                        friendly.add("The batting order is currently not available. Please try again closer to the scheduled game time.");
+                    } else {
+                        for (var player : battingOrder) {
+                            friendly.add(player.friendlyString());
+                        }
                     }
 
-                    friendly.add(0, event.getButton().getLabel());
-                    friendly.add(1, "");
+                    // add a string before the next-to-last element. e.g. "a", "b", "c" <-- between b and c
+                    friendly.add("## Probable Pitcher");
 
-                    if (friendly.size() == 2) {
-                        friendly.add("No lineup has been submitted yet. Try closer to the game!");
+                    var probablePitcher = lineup.get("Probable Pitcher");
+
+                    if (probablePitcher.isEmpty()) {
+                        friendly.add("The probable pitcher is currently not available. Please try again closer to the scheduled game time.");
+                    } else {
+                        friendly.add(probablePitcher.get(0).friendlyString());
                     }
 
                     event.reply(String.join("\n", friendly)).setEphemeral(true).queue();
