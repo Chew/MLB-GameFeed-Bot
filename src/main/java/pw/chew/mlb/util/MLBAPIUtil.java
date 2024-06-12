@@ -80,9 +80,15 @@ public class MLBAPIUtil {
         response.put("Batting Order", lineupPlayers);
 
         // add pitcher to end
-        int probablePitcher = data.getJSONObject("gameData").getJSONObject("probablePitchers").getJSONObject(homeAway).getInt("id");
-        Player pitcher = players.get(probablePitcher);
-        response.put("Probable Pitcher", Collections.singletonList(pitcher));
+        JSONObject probablePitchers = data.getJSONObject("gameData").getJSONObject("probablePitchers");
+        if (probablePitchers.has(homeAway)) {
+            int probablePitcher = probablePitchers.getJSONObject(homeAway).getInt("id");
+            Player pitcher = players.get(probablePitcher);
+            response.put("Probable Pitcher", Collections.singletonList(pitcher));
+        } else {
+            // empty list
+            response.put("Probable Pitcher", Collections.emptyList());
+        }
 
         return response;
     }
