@@ -1,7 +1,7 @@
 plugins {
     id("java")
     application
-    kotlin("jvm") version "1.6.10"
+    kotlin("jvm") version "1.9.10"
 }
 
 group = "pw.chew"
