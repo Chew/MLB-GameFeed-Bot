@@ -95,8 +95,8 @@ public class AdminCommand extends Command {
             .clearItems();
 
         Map<String, List<GuildChannel>> channelMap = new HashMap<>();
-        LoggerFactory.getLogger(this.getClass()).debug("There are {} active games", GameFeedHandler.ACTIVE_GAMES.size());
-        for (ActiveGame game : GameFeedHandler.ACTIVE_GAMES) {
+        LoggerFactory.getLogger(this.getClass()).debug("There are {} active games", GameFeedHandler.allGames().size());
+        for (ActiveGame game : GameFeedHandler.allGames()) {
             LoggerFactory.getLogger(this.getClass()).debug("Found active game {}", game);
             GuildChannel channel = event.getJDA().getGuildChannelById(game.channelId());
             var channels = channelMap.get(game.gamePk());
@@ -120,12 +120,12 @@ public class AdminCommand extends Command {
 
     public void botStats(CommandEvent event) {
         long serverCount = event.getJDA().getGuilds().size();
-        long activeGames = GameFeedHandler.ACTIVE_GAMES.size();
+        long activeGames = GameFeedHandler.allGames().size();
         long activeThreads = GameFeedHandler.GAME_THREADS.size();
 
         // Store a list that can only have unique items
         List<String> activeServers = new ArrayList<>();
-        for (ActiveGame game : GameFeedHandler.ACTIVE_GAMES) {
+        for (ActiveGame game : GameFeedHandler.allGames()) {
             GuildChannel channel = jda.getGuildChannelById(game.channelId());
             if (channel == null) continue;
 

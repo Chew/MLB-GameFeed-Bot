@@ -12,6 +12,10 @@ import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.mapdb.DB;
+import org.mapdb.DBMaker;
+import org.mapdb.HTreeMap;
+import org.mapdb.Serializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import pw.chew.mlb.commands.AdminCommand;
@@ -34,7 +38,15 @@ import static pw.chew.mlb.MLBBot.jda;
 public class GameFeedHandler {
     private static final Logger logger = LoggerFactory.getLogger(GameFeedHandler.class);
     public final static Map<String, Thread> GAME_THREADS = new HashMap<>();
-    public final static List<ActiveGame> ACTIVE_GAMES = new ArrayList<>();
+
+    private static final DB db = DBMaker.fileDB("games.db").fileMmapEnable().closeOnJvmShutdown().checksumHeaderBypass().make();
+    /**
+     * A map of active games. "String" is the Channel ID. ActiveGame is an object containing the gamePk and channelId.
+     */
+    private static final HTreeMap<String, ActiveGame> gamesMap = db
+        .hashMap("games", Serializer.STRING, new ActiveGame.EntrySerializer())
+        .createOrOpen();
+
     public static boolean shutdownOnFinish = false;
 
     /**
@@ -42,9 +54,12 @@ public class GameFeedHandler {
      * If no game is currently active, the game will be started, otherwise it will be added to the active games list.
      *
      * @param game The game to add to the active games list.
+     * @param modifyDb Whether to modify the database or not. This should only be false when booting.
      */
-    public static void addGame(ActiveGame game) {
-        ACTIVE_GAMES.add(game);
+    public static void addGame(ActiveGame game, boolean modifyDb) {
+        if (modifyDb) {
+            gamesMap.put(game.channelId(), game);
+        }
         // make sure config is cached
         ChannelConfig.getConfig(game.channelId());
 
@@ -60,19 +75,29 @@ public class GameFeedHandler {
     }
 
     /**
+     * Adds a game to the active games list.
+     * If no game is currently active, the game will be started, otherwise it will be added to the active games list.
+     *
+     * @param game The game to add to the active games list.
+     */
+    public static void addGame(ActiveGame game) {
+        addGame(game, true);
+    }
+
+    /**
      * Stops (or "unsubscribes") a game from the active games list.
      *
      * @param game The game to stop from the active games list.
      */
     public static void stopGame(ActiveGame game) {
         int currentGames = 0;
-        for (ActiveGame activeGame : ACTIVE_GAMES) {
+        for (ActiveGame activeGame : gamesMap.values()) {
             if (game.gamePk().equals(activeGame.gamePk())) {
                 currentGames++;
             }
         }
 
-        ACTIVE_GAMES.remove(game);
+        gamesMap.remove(game.channelId());
 
         // If this is the last game running, stop the thread
         if (currentGames == 1) {
@@ -83,6 +108,15 @@ public class GameFeedHandler {
         }
 
         logger.debug("Removed game " + game.gamePk() + " from the active games list");
+    }
+
+    /**
+     * Returns a list of all active games.
+     *
+     * @return A list of all active games.
+     */
+    public static List<ActiveGame> allGames() {
+        return new ArrayList<>(gamesMap.values());
     }
 
     /**
@@ -108,7 +142,7 @@ public class GameFeedHandler {
      * @return The gamePk if the game was stopped, null if no game was found in the provided text channel.
      */
     public static String stopGame(GuildMessageChannel channel) {
-        for (ActiveGame game : ACTIVE_GAMES) {
+        for (ActiveGame game : gamesMap.values()) {
             if (game.channelId().equals(channel.getId())) {
                 stopGame(game);
                 return game.gamePk();
@@ -125,7 +159,7 @@ public class GameFeedHandler {
      * @return The current game for the provided text channel, null if no game is currently running in the provided text channel.
      */
     public static String currentGame(GuildMessageChannel channel) {
-        for (ActiveGame game : ACTIVE_GAMES) {
+        for (ActiveGame game : gamesMap.values()) {
             if (game.channelId().equals(channel.getId())) {
                 return game.gamePk();
             }
@@ -141,7 +175,7 @@ public class GameFeedHandler {
      * @return The score of the first ongoing game in the server.
      */
     public static ActiveGame currentServerGame(@NotNull Guild server) {
-        for (ActiveGame game : ACTIVE_GAMES) {
+        for (ActiveGame game : gamesMap.values()) {
             if (server.getGuildChannelById(game.channelId()) != null) {
                 return game;
             }
@@ -530,7 +564,9 @@ public class GameFeedHandler {
         }
 
         // Remove the games from the active games list
-        ACTIVE_GAMES.removeIf(game -> game.gamePk().equals(gamePk));
+        for (ActiveGame game : getGames(gamePk)) {
+            stopGame(game);
+        }
 
         // Remove the game thread
         removeThread(gamePk);
@@ -579,7 +615,7 @@ public class GameFeedHandler {
     public static List<ActiveGame> getGames(String gamePk) {
         List<ActiveGame> games = new ArrayList<>();
 
-        for (ActiveGame game : ACTIVE_GAMES) {
+        for (ActiveGame game : gamesMap.values()) {
             if (!game.gamePk().equals(gamePk)) continue;
 
             games.add(game);

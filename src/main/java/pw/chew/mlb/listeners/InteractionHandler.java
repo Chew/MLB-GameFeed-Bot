@@ -21,7 +21,7 @@ public class InteractionHandler extends ListenerAdapter {
                     .editMessageEmbeds(PlanGameCommand.generateGameBlurb(gamePk))
                     .queue((m) -> event.reply("Refreshed!").setEphemeral(true).queue());
                 case "start" -> {
-                    String startGame = StartGameCommand.startGame(gamePk, event.getChannel().getId());
+                    String startGame = StartGameCommand.startGame(gamePk, event.getGuildChannel());
                     event.reply(startGame).setEphemeral(!startGame.contains("Starting game")).queue();
                 }
                 case "lineup" -> {

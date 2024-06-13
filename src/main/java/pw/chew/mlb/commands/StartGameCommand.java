@@ -1,9 +1,8 @@
 package pw.chew.mlb.commands;
 
-import com.jagrosh.jdautilities.command.CommandEvent;
 import com.jagrosh.jdautilities.command.SlashCommand;
 import com.jagrosh.jdautilities.command.SlashCommandEvent;
-import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
 import net.dv8tion.jda.api.interactions.commands.Command;
@@ -24,8 +23,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-
-import static pw.chew.mlb.listeners.GameFeedHandler.ACTIVE_GAMES;
 
 public class StartGameCommand extends SlashCommand {
 
@@ -48,19 +45,18 @@ public class StartGameCommand extends SlashCommand {
     @Override
     protected void execute(SlashCommandEvent event) {
         String gamePk = event.getOption("game", "0", OptionMapping::getAsString);
-        String startGame = startGame(gamePk, event.getChannel().getId());
+        String startGame = startGame(gamePk, event.getGuildChannel());
         event.reply(startGame).setEphemeral(!startGame.contains("Starting game")).queue();
     }
 
-    public static String startGame(String gamePk, String channelId) {
-        for (ActiveGame game : ACTIVE_GAMES) {
-            if (game.channelId().equals(channelId)) {
-                return "This channel is already playing a game: " + game.gamePk() + ". Please wait for it to finish, or stop it with `/stopgame`.";
-            }
+    public static String startGame(String gamePk, GuildMessageChannel channel) {
+        String currentGame = GameFeedHandler.currentGame(channel);
+        if (currentGame != null) {
+            return "This channel is already playing a game: " + currentGame + ". Please wait for it to finish, or stop it with `/stopgame`.";
         }
 
         // Start a new thread
-        ActiveGame activeGame = new ActiveGame(gamePk, channelId);
+        ActiveGame activeGame = new ActiveGame(gamePk, channel.getId());
         GameState currentState = GameState.fromPk(gamePk);
 
         // Refuse to start if the game is already over
@@ -110,34 +106,5 @@ public class StartGameCommand extends SlashCommand {
         }
 
         event.replyChoices(choices).queue();
-    }
-
-    @Override
-    protected void execute(CommandEvent event) {
-        String gamePk = event.getArgs();
-
-        for (ActiveGame game : ACTIVE_GAMES) {
-            if (game.channelId().equals(event.getTextChannel().getId())) {
-                event.reply("This channel is already playing a game: " + game.gamePk() + ". Please wait for it to finish or stop it.");
-                return;
-            }
-        }
-
-        // make sure the bot has proper perms
-        if (!event.getSelfMember().hasPermission(event.getTextChannel(), Permission.VIEW_CHANNEL, Permission.MESSAGE_SEND, Permission.MESSAGE_EMBED_LINKS)) {
-            event.reply("I do not have the proper permissions to start a game in this channel. I need: " + Permission.VIEW_CHANNEL + ", " + Permission.MESSAGE_SEND + ", " + Permission.MESSAGE_EMBED_LINKS);
-            return;
-        }
-
-        // Start a new thread
-        ActiveGame activeGame = new ActiveGame(gamePk, event.getTextChannel().getId());
-        GameState currentState = GameState.fromPk(gamePk);
-
-        event.getChannel().sendMessage("Starting game with gamePk: " + gamePk + "\n" +
-            currentState.away().clubName() + " @ " + currentState.home().clubName() + " at " +
-            TimeFormat.DATE_TIME_SHORT.format(currentState.officialDate())
-        ).queue();
-
-        GameFeedHandler.addGame(activeGame);
     }
 }
