@@ -9,30 +9,23 @@ import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInterac
 import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
 import net.dv8tion.jda.api.interactions.InteractionHook;
-import net.dv8tion.jda.api.interactions.commands.Command;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
-import org.json.JSONArray;
-import org.json.JSONObject;
-import pw.chew.chewbotcca.util.RestClient;
 import pw.chew.mlb.objects.GameBlurb;
 import pw.chew.mlb.objects.ImageUtil;
-import pw.chew.mlb.util.MLBAPIUtil;
+import pw.chew.mlb.util.AutocompleteUtil;
 import pw.chew.mlb.util.TeamEmoji;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static pw.chew.mlb.MLBBot.SEASON;
 
 public class PlanGameCommand extends SlashCommand {
     public PlanGameCommand() {
@@ -174,87 +167,7 @@ public class PlanGameCommand extends SlashCommand {
 
     @Override
     public void onAutoComplete(CommandAutoCompleteInteractionEvent event) {
-        switch (event.getFocusedOption().getName()) {
-            case "team" -> {
-                // get current value of sport
-                String sport = event.getOption("sport", "1", OptionMapping::getAsString);
-                String input = event.getFocusedOption().getValue();
-
-                List<Command.Choice> choices;
-                if (input.isBlank()) {
-                    choices = MLBAPIUtil.getTeams(sport).asChoices();
-                } else {
-                    choices = MLBAPIUtil.getTeams(sport).potentialChoices(input);
-                }
-
-                // Ensure no duplicates and no more than 25 choices
-                choices = choices.stream().distinct().limit(25).toList();
-
-                event.replyChoices(choices).queue();
-                return;
-            }
-            case "sport" -> {
-                event.replyChoices(MLBAPIUtil.getSports().asChoices()).queue();
-                return;
-            }
-            case "date" -> {
-                int teamId = event.getOption("team", -1, OptionMapping::getAsInt);
-                String sport = event.getOption("sport", "1", OptionMapping::getAsString);
-
-                if (teamId == -1) {
-                    event.replyChoices(new Command.Choice("Please select a team first!", -1)).queue();
-                    return;
-                }
-
-                JSONArray games = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/schedule?lang=en&sportId=%S&season=%s&teamId=%S&fields=dates,date,games,gamePk,teams,away,team,teamName,id&hydrate=team".formatted(sport, SEASON, teamId)))
-                    .getJSONArray("dates");
-
-                List<Command.Choice> choices = new ArrayList<>();
-                for (int i = 0; i < games.length(); i++) {
-                    // Formatted as YYYY-MM-DD
-                    String date = games.getJSONObject(i).getString("date");
-
-                    Calendar c1 = Calendar.getInstance(); // today
-                    // yesterday
-                    c1.add(Calendar.DATE, -1);
-
-                    Calendar c2 = Calendar.getInstance();
-                    c2.set(
-                        Integer.parseInt(date.split("-")[0]),
-                        Integer.parseInt(date.split("-")[1]) - 1,
-                        Integer.parseInt(date.split("-")[2])
-                    );
-
-                    if (c2.before(c1)) {
-                        continue;
-                    }
-
-                    JSONArray dayGames = games.getJSONObject(i).getJSONArray("games");
-                    for (int j = 0; j < dayGames.length(); j++) {
-                        JSONObject game = dayGames.getJSONObject(j);
-
-                        // find if we're home or away
-                        JSONObject away = game.getJSONObject("teams").getJSONObject("away").getJSONObject("team");
-                        JSONObject home = game.getJSONObject("teams").getJSONObject("home").getJSONObject("team");
-
-                        boolean isAway = away.getInt("id") == teamId;
-                        String opponent = isAway ? home.getString("teamName") : away.getString("teamName");
-
-                        String name = "%s %s - %s%s".formatted(isAway ? "@" : "vs", opponent, date, dayGames.length() > 1 ? " (Game %d)".formatted(j + 1) : "");
-                        choices.add(new Command.Choice(name, game.getInt("gamePk")));
-                    }
-                }
-
-                // Ensure no more than 25 choices, and no duplicates
-                choices = choices.stream().distinct().limit(25).toList();
-
-                event.replyChoices(choices).queue();
-
-                return;
-            }
-        }
-
-        event.replyChoices().queue();
+        event.replyChoices(AutocompleteUtil.handleInput(event)).queue();
     }
 
     public static List<Button> buildButtons(String gamePk, GameBlurb blurb) {

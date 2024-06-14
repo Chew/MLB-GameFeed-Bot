@@ -144,6 +144,11 @@ public class MLBAPIUtil {
         }
 
         public List<Command.Choice> potentialChoices(String query) {
+            // If we don't have an input, return all choices
+            if (query.isBlank()) {
+                return asChoices();
+            }
+
             List<Command.Choice> potential = new ArrayList<>();
 
             // Search the teams by an exact starting match
