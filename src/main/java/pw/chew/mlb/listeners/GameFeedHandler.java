@@ -323,6 +323,14 @@ public class GameFeedHandler {
 
                     logger.debug("New advisory: " + advisory);
 
+                    String event = details.getString("event");
+                    String description = details.getString("description");
+
+                    if (description.replaceAll("\\.", "").equals(event)) {
+                        // reset description if it's the same as the event
+                        description = null;
+                    }
+
                     EmbedBuilder detailEmbed = new EmbedBuilder()
                         .setTitle(event)
                         .setDescription(description);
