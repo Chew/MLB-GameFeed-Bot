@@ -324,11 +324,11 @@ public class GameFeedHandler {
                     logger.debug("New advisory: " + advisory);
 
                     EmbedBuilder detailEmbed = new EmbedBuilder()
-                        .setTitle(details.getString("event"))
-                        .setDescription(details.getString("description"));
+                        .setTitle(event)
+                        .setDescription(description);
 
                     // Check if score changed
-                    if (details.has("isScoringPlay") && details.getBoolean("isScoringPlay")) {
+                    if (details.optBoolean("isScoringPlay", false)) {
                         int homeScore = details.getInt("homeScore");
                         int awayScore = details.getInt("awayScore");
                         boolean homeScored = homeScore > awayScore;
