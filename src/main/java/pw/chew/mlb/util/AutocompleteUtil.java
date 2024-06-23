@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.List;
+import java.util.TimeZone;
 
 import static pw.chew.mlb.MLBBot.SEASON;
 
@@ -90,18 +91,20 @@ public class AutocompleteUtil {
             // Formatted as YYYY-MM-DD
             String date = games.getJSONObject(i).getString("date");
 
-            Calendar c1 = Calendar.getInstance(); // today
+            // get today at eastern time
+            Calendar currentDate = Calendar.getInstance(TimeZone.getTimeZone("America/New_York"));
             // yesterday
-            c1.add(Calendar.DATE, -1);
+            currentDate.add(Calendar.DATE, -1);
 
-            Calendar c2 = Calendar.getInstance();
-            c2.set(
+            Calendar gameDate = Calendar.getInstance(TimeZone.getTimeZone("America/New_York"));
+            gameDate.set(
                 Integer.parseInt(date.split("-")[0]),
                 Integer.parseInt(date.split("-")[1]) - 1,
                 Integer.parseInt(date.split("-")[2])
             );
 
-            if (c2.before(c1) || c2.equals(c1)) {
+            // skip if before today
+            if (gameDate.before(currentDate)) {
                 continue;
             }
 
