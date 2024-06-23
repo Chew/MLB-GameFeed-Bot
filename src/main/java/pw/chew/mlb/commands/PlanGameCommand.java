@@ -4,7 +4,9 @@ import com.jagrosh.jdautilities.command.SlashCommand;
 import com.jagrosh.jdautilities.command.SlashCommandEvent;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
-import net.dv8tion.jda.api.entities.channel.unions.GuildChannelUnion;
+import net.dv8tion.jda.api.entities.channel.concrete.ForumChannel;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
@@ -39,11 +41,11 @@ public class PlanGameCommand extends SlashCommand {
         this.options = Arrays.asList(
             new OptionData(OptionType.STRING, "team", "The team to plan for", true, true)
                 .setDescriptionLocalization(DiscordLocale.SPANISH, "El equipo para planificar"),
-            new OptionData(OptionType.CHANNEL, "channel", "The channel to plan for", true)
-                .setDescriptionLocalization(DiscordLocale.SPANISH, "El canal para planificar")
-                .setChannelTypes(ChannelType.TEXT, ChannelType.FORUM),
             new OptionData(OptionType.STRING, "date", "The date of the game. Select one from the list!", true, true)
                 .setDescriptionLocalization(DiscordLocale.SPANISH, "La fecha del juego. ¡Seleccione uno de la lista!"),
+            new OptionData(OptionType.CHANNEL, "channel", "The channel to plan for", false)
+                .setDescriptionLocalization(DiscordLocale.SPANISH, "El canal para planificar")
+                .setChannelTypes(ChannelType.TEXT, ChannelType.FORUM),
             new OptionData(OptionType.STRING, "sport", "The sport to plan a game for, Majors by default.", false, true)
                 .setDescriptionLocalization(DiscordLocale.SPANISH, "El deporte para planificar un juego, Majors de forma predeterminada."),
             new OptionData(OptionType.BOOLEAN, "thread", "Whether to make a thread or not. Defaults to true, required true for forums.", false)
@@ -60,12 +62,7 @@ public class PlanGameCommand extends SlashCommand {
 
     @Override
     protected void execute(SlashCommandEvent event) {
-        OptionMapping channelMapping = event.getOption("channel");
-        if (channelMapping == null) {
-            event.reply("You must specify a channel to plan for!").setEphemeral(true).queue();
-            return;
-        }
-        GuildChannelUnion channel = channelMapping.getAsChannel();
+        GuildChannel channel = event.getOption("channel", event.getGuildChannel(), OptionMapping::getAsChannel);
 
         String gamePk = event.optString("date", "1");
         GameBlurb blurb = new GameBlurb(gamePk);
@@ -87,7 +84,7 @@ public class PlanGameCommand extends SlashCommand {
             .queue(interactionHook -> handle(interactionHook, gamePk, channel, blurb, makeThread, makeEvent, status));
     }
 
-    public void handle(InteractionHook event, String gamePk, GuildChannelUnion channel, GameBlurb blurb, boolean makeThread, boolean makeEvent, List<String> status) {
+    public void handle(InteractionHook event, String gamePk, GuildChannel channel, GameBlurb blurb, boolean makeThread, boolean makeEvent, List<String> status) {
         if (makeEvent) {
             // async pathfinding???
             String name = blurb.name();
@@ -122,8 +119,10 @@ public class PlanGameCommand extends SlashCommand {
 
         switch (channel.getType()) {
             case TEXT -> {
+                TextChannel textChannel = (TextChannel) channel;
+
                 if (!makeThread) {
-                    channel.asTextChannel().sendMessageEmbeds(blurb.blurb()).setActionRow(buildButtons(gamePk, blurb)).queue(message -> {
+                    textChannel.sendMessageEmbeds(blurb.blurb()).setActionRow(buildButtons(gamePk, blurb)).queue(message -> {
                         int index = status.indexOf("Sending Message...");
                         status.set(index, "Sending Message... Done! " + message.getJumpUrl());
 
@@ -132,7 +131,7 @@ public class PlanGameCommand extends SlashCommand {
                     return;
                 }
 
-                channel.asTextChannel().createThreadChannel(blurb.name()).queue(threadChannel -> {
+                textChannel.createThreadChannel(blurb.name()).queue(threadChannel -> {
                     int index = status.indexOf("Creating Thread...");
                     status.set(index, "Creating Thread... Done!");
                     event.editOriginal(String.join("\n", status)).queue();
@@ -150,8 +149,10 @@ public class PlanGameCommand extends SlashCommand {
                     });
                 });
             }
-            case FORUM ->
-                channel.asForumChannel().createForumPost(blurb.name(), MessageCreateData.fromEmbeds(blurb.blurb())).setActionRow(buildButtons(gamePk, blurb)).queue(forumPost -> {
+            case FORUM -> {
+                ForumChannel forumChannel = (ForumChannel) channel;
+
+                forumChannel.createForumPost(blurb.name(), MessageCreateData.fromEmbeds(blurb.blurb())).setActionRow(buildButtons(gamePk, blurb)).queue(forumPost -> {
                     try {
                         forumPost.getMessage().pin().queue();
                     } catch (InsufficientPermissionException ignored) {
@@ -162,6 +163,7 @@ public class PlanGameCommand extends SlashCommand {
 
                     event.editOriginal(String.join("\n", status)).queue();
                 });
+            }
         }
     }
 
