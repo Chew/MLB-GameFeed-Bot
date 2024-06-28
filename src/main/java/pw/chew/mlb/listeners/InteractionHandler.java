@@ -1,10 +1,12 @@
 package pw.chew.mlb.listeners;
 
+import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import org.jetbrains.annotations.NotNull;
 import pw.chew.mlb.commands.PlanGameCommand;
 import pw.chew.mlb.commands.StartGameCommand;
+import pw.chew.mlb.util.EmbedUtil;
 import pw.chew.mlb.util.MLBAPIUtil;
 
 import java.util.ArrayList;
@@ -21,8 +23,12 @@ public class InteractionHandler extends ListenerAdapter {
                     .editMessageEmbeds(PlanGameCommand.generateGameBlurb(gamePk))
                     .queue((m) -> event.reply("Refreshed!").setEphemeral(true).queue());
                 case "start" -> {
-                    String startGame = StartGameCommand.startGame(gamePk, event.getGuildChannel());
-                    event.reply(startGame).setEphemeral(!startGame.contains("Starting game")).queue();
+                    try {
+                        MessageEmbed startGame = StartGameCommand.startGame(gamePk, event.getGuildChannel(), event.getUser());
+                        event.replyEmbeds(startGame).queue();
+                    } catch (IllegalStateException e) {
+                        event.replyEmbeds(EmbedUtil.failure(e.getMessage())).setEphemeral(true).queue();
+                    }
                 }
                 case "lineup" -> {
                     String awayHome = event.getComponentId().split(":")[3];
