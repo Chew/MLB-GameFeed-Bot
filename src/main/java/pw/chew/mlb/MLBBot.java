@@ -53,7 +53,7 @@ public class MLBBot {
 
         // Set the client settings
         client.setActivity(Activity.watching("the 2024 season!"));
-        client.setOwnerId("476488167042580481");
+        client.setOwnerId(prop.getProperty("userId", "476488167042580481"));
         client.setPrefix("woody!");
 
         client.useHelpBuilder(false);
