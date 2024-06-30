@@ -74,6 +74,10 @@ public record GameState(JSONObject gameData) {
         return gameData().getJSONObject("gameData").getJSONObject("status").getString("detailedState").equals("Cancelled");
     }
 
+    public boolean isSuspended() {
+        return gameData().getJSONObject("gameData").getJSONObject("status").getString("detailedState").contains("Suspended");
+    }
+
     /**
      * Whether a game is final.
      * @return true if the game is final, false otherwise

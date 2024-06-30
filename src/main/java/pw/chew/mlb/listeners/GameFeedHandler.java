@@ -384,6 +384,11 @@ public class GameFeedHandler {
             return;
         }
 
+        if (currentState.isSuspended()) {
+            endGame(gamePk, currentState, "\nUnfortunately, this game has been suspended. It will resume at a later time.");
+            return;
+        }
+
         // Build a scorecard embed
         EmbedBuilder scorecardEmbed = new EmbedBuilder();
         scorecardEmbed.setTitle("Scorecard");
