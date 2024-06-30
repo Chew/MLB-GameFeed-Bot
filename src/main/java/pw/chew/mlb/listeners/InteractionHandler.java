@@ -19,9 +19,7 @@ public class InteractionHandler extends ListenerAdapter {
             String action = event.getComponentId().split(":")[1];
             String gamePk = event.getComponentId().split(":")[2];
             switch (action) {
-                case "refresh" -> event.getMessage()
-                    .editMessageEmbeds(PlanGameCommand.generateGameBlurb(gamePk))
-                    .queue((m) -> event.reply("Refreshed!").setEphemeral(true).queue());
+                case "refresh" -> event.deferEdit().queue(e -> e.editOriginalEmbeds(PlanGameCommand.generateGameBlurb(gamePk)).queue());
                 case "start" -> {
                     try {
                         MessageEmbed startGame = StartGameCommand.startGame(gamePk, event.getGuildChannel(), event.getUser());
