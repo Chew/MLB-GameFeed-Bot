@@ -206,6 +206,16 @@ public class GameFeedHandler {
         while (!currentState.gameState().equals("Final")) {
             GameState recentState = GameState.fromPk(gamePk);
 
+            if (recentState.isCancelled()) {
+                endGame(gamePk, recentState, "\nUnfortunately, this game was cancelled.");
+                return;
+            }
+
+            if (recentState.isSuspended()) {
+                endGame(gamePk, recentState, "\nUnfortunately, this game has been suspended. It will resume at a later time.");
+                return;
+            }
+
             if (recentState.failed()) {
                 int retryIn = fails + 3;
                 retryIn = Math.min(20, retryIn);
@@ -321,7 +331,7 @@ public class GameFeedHandler {
                     JSONObject advisory = newAdvisories.get(i);
                     JSONObject details = advisory.getJSONObject("details");
 
-                    logger.debug("New advisory: " + advisory);
+                    logger.debug("New advisory: {}", advisory);
 
                     String event = details.getString("event");
                     String description = details.getString("description");
@@ -377,16 +387,6 @@ public class GameFeedHandler {
                 removeThread(gamePk);
                 return;
             }
-        }
-
-        if (currentState.isCancelled()) {
-            endGame(gamePk, currentState, "\nUnfortunately, this game was cancelled.");
-            return;
-        }
-
-        if (currentState.isSuspended()) {
-            endGame(gamePk, currentState, "\nUnfortunately, this game has been suspended. It will resume at a later time.");
-            return;
         }
 
         // Build a scorecard embed
