@@ -1,7 +1,7 @@
 plugins {
     id("java")
     application
-    kotlin("jvm") version "1.6.10"
+    kotlin("jvm") version "1.9.10"
 }
 
 group = "pw.chew"
@@ -19,7 +19,7 @@ repositories {
 }
 
 dependencies {
-    implementation("net.dv8tion", "JDA", "5.0.0-beta.15")
+    implementation("net.dv8tion", "JDA", "5.0.0-beta.24")
     implementation("pw.chew", "jda-chewtils", "2.0-SNAPSHOT")
     implementation("org.json", "json", "20230227")
     implementation("ch.qos.logback", "logback-classic", "1.4.5")

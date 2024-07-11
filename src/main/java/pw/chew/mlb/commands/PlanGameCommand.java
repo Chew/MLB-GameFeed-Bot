@@ -4,23 +4,22 @@ import com.jagrosh.jdautilities.command.SlashCommand;
 import com.jagrosh.jdautilities.command.SlashCommandEvent;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.channel.ChannelType;
-import net.dv8tion.jda.api.entities.channel.unions.GuildChannelUnion;
+import net.dv8tion.jda.api.entities.channel.concrete.ForumChannel;
+import net.dv8tion.jda.api.entities.channel.concrete.TextChannel;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
 import net.dv8tion.jda.api.interactions.InteractionHook;
-import net.dv8tion.jda.api.interactions.commands.Command;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.api.utils.messages.MessageCreateData;
-import org.json.JSONArray;
-import org.json.JSONObject;
-import pw.chew.chewbotcca.util.RestClient;
 import pw.chew.mlb.objects.GameBlurb;
 import pw.chew.mlb.objects.ImageUtil;
-import pw.chew.mlb.objects.MLBAPIUtil;
+import pw.chew.mlb.util.AutocompleteUtil;
+import pw.chew.mlb.util.TeamEmoji;
 
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -31,8 +30,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
-import static pw.chew.mlb.MLBBot.SEASON;
 
 public class PlanGameCommand extends SlashCommand {
     public PlanGameCommand() {
@@ -46,11 +43,11 @@ public class PlanGameCommand extends SlashCommand {
         this.options = Arrays.asList(
             new OptionData(OptionType.STRING, "team", "The team to plan for", true, true)
                 .setDescriptionLocalization(DiscordLocale.SPANISH, "El equipo para planificar"),
-            new OptionData(OptionType.CHANNEL, "channel", "The channel to plan for", true)
-                .setDescriptionLocalization(DiscordLocale.SPANISH, "El canal para planificar")
-                .setChannelTypes(ChannelType.TEXT, ChannelType.FORUM),
             new OptionData(OptionType.STRING, "date", "The date of the game. Select one from the list!", true, true)
                 .setDescriptionLocalization(DiscordLocale.SPANISH, "La fecha del juego. ¡Seleccione uno de la lista!"),
+            new OptionData(OptionType.CHANNEL, "channel", "The channel to plan for", false)
+                .setDescriptionLocalization(DiscordLocale.SPANISH, "El canal para planificar")
+                .setChannelTypes(ChannelType.TEXT, ChannelType.FORUM),
             new OptionData(OptionType.STRING, "sport", "The sport to plan a game for, Majors by default.", false, true)
                 .setDescriptionLocalization(DiscordLocale.SPANISH, "El deporte para planificar un juego, Majors de forma predeterminada."),
             new OptionData(OptionType.BOOLEAN, "thread", "Whether to make a thread or not. Defaults to true, required true for forums.", false)
@@ -67,12 +64,7 @@ public class PlanGameCommand extends SlashCommand {
 
     @Override
     protected void execute(SlashCommandEvent event) {
-        OptionMapping channelMapping = event.getOption("channel");
-        if (channelMapping == null) {
-            event.reply("You must specify a channel to plan for!").setEphemeral(true).queue();
-            return;
-        }
-        GuildChannelUnion channel = channelMapping.getAsChannel();
+        GuildChannel channel = event.getOption("channel", event.getGuildChannel(), OptionMapping::getAsChannel);
 
         String gamePk = event.optString("date", "1");
         GameBlurb blurb = new GameBlurb(gamePk);
@@ -94,7 +86,7 @@ public class PlanGameCommand extends SlashCommand {
             .queue(interactionHook -> handle(interactionHook, gamePk, channel, blurb, makeThread, makeEvent, status));
     }
 
-    public void handle(InteractionHook event, String gamePk, GuildChannelUnion channel, GameBlurb blurb, boolean makeThread, boolean makeEvent, List<String> status) {
+    public void handle(InteractionHook event, String gamePk, GuildChannel channel, GameBlurb blurb, boolean makeThread, boolean makeEvent, List<String> status) {
         if (makeEvent) {
             // async pathfinding???
             String name = blurb.name();
@@ -129,8 +121,10 @@ public class PlanGameCommand extends SlashCommand {
 
         switch (channel.getType()) {
             case TEXT -> {
+                TextChannel textChannel = (TextChannel) channel;
+
                 if (!makeThread) {
-                    channel.asTextChannel().sendMessageEmbeds(blurb.blurb()).setActionRow(buildButtons(gamePk, blurb)).queue(message -> {
+                    textChannel.sendMessageEmbeds(blurb.blurb()).setActionRow(buildButtons(gamePk, blurb)).queue(message -> {
                         int index = status.indexOf("Sending Message...");
                         status.set(index, "Sending Message... Done! " + message.getJumpUrl());
 
@@ -139,7 +133,7 @@ public class PlanGameCommand extends SlashCommand {
                     return;
                 }
 
-                channel.asTextChannel().createThreadChannel(blurb.name()).queue(threadChannel -> {
+                textChannel.createThreadChannel(blurb.name()).queue(threadChannel -> {
                     int index = status.indexOf("Creating Thread...");
                     status.set(index, "Creating Thread... Done!");
                     event.editOriginal(String.join("\n", status)).queue();
@@ -157,8 +151,10 @@ public class PlanGameCommand extends SlashCommand {
                     });
                 });
             }
-            case FORUM ->
-                channel.asForumChannel().createForumPost(blurb.name(), MessageCreateData.fromEmbeds(blurb.blurb())).setActionRow(buildButtons(gamePk, blurb)).queue(forumPost -> {
+            case FORUM -> {
+                ForumChannel forumChannel = (ForumChannel) channel;
+
+                forumChannel.createForumPost(blurb.name(), MessageCreateData.fromEmbeds(blurb.blurb())).setActionRow(buildButtons(gamePk, blurb)).queue(forumPost -> {
                     try {
                         forumPost.getMessage().pin().queue();
                     } catch (InsufficientPermissionException ignored) {
@@ -169,105 +165,21 @@ public class PlanGameCommand extends SlashCommand {
 
                     event.editOriginal(String.join("\n", status)).queue();
                 });
+            }
         }
     }
 
     @Override
     public void onAutoComplete(CommandAutoCompleteInteractionEvent event) {
-        event.replyChoices(handleAutoComplete(event)).queue();
-    }
-
-    /**
-     * Handles auto complete for: teams (MLB), sports, and dates (for the team)
-     *
-     * @param event the event
-     * @return a list of choices, maybe empty, maybe 1 choice, maybe 25 choices, who knows.
-     */
-    public static List<Command.Choice> handleAutoComplete(CommandAutoCompleteInteractionEvent event) {
-        switch (event.getFocusedOption().getName()) {
-            case "team" -> {
-                // get current value of sport
-                String sport = event.getOption("sport", "1", OptionMapping::getAsString);
-                String input = event.getFocusedOption().getValue();
-
-                List<Command.Choice> choices;
-                if (input.isBlank()) {
-                    choices = MLBAPIUtil.getTeams(sport).asChoices();
-                } else {
-                    choices = MLBAPIUtil.getTeams(sport).potentialChoices(input);
-                }
-
-                // Ensure no duplicates and no more than 25 choices
-                choices = choices.stream().distinct().limit(25).toList();
-
-                return choices;
-            }
-            case "sport" -> {
-                return MLBAPIUtil.getSports().asChoices();
-            }
-            case "date" -> {
-                int teamId = event.getOption("team", -1, OptionMapping::getAsInt);
-                String sport = event.getOption("sport", "1", OptionMapping::getAsString);
-
-                if (teamId == -1) {
-                    return Collections.singletonList(new Command.Choice("Please select a team first!", -1));
-                }
-
-                JSONArray games = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/schedule?lang=en&sportId=%S&season=%s&teamId=%S&fields=dates,date,games,gamePk,teams,away,team,teamName,id&hydrate=team".formatted(sport, SEASON, teamId)))
-                    .getJSONArray("dates");
-
-                List<Command.Choice> choices = new ArrayList<>();
-                for (int i = 0; i < games.length(); i++) {
-                    // Formatted as YYYY-MM-DD
-                    String date = games.getJSONObject(i).getString("date");
-
-                    Calendar c1 = Calendar.getInstance(); // today
-                    // yesterday
-                    c1.add(Calendar.DATE, -1);
-
-                    Calendar c2 = Calendar.getInstance();
-                    c2.set(
-                        Integer.parseInt(date.split("-")[0]),
-                        Integer.parseInt(date.split("-")[1]) - 1,
-                        Integer.parseInt(date.split("-")[2])
-                    );
-
-                    if (c2.before(c1)) {
-                        continue;
-                    }
-
-                    JSONArray dayGames = games.getJSONObject(i).getJSONArray("games");
-                    for (int j = 0; j < dayGames.length(); j++) {
-                        JSONObject game = dayGames.getJSONObject(j);
-
-                        // find if we're home or away
-                        JSONObject away = game.getJSONObject("teams").getJSONObject("away").getJSONObject("team");
-                        JSONObject home = game.getJSONObject("teams").getJSONObject("home").getJSONObject("team");
-
-                        boolean isAway = away.getInt("id") == teamId;
-                        String opponent = isAway ? home.getString("teamName") : away.getString("teamName");
-
-                        String name = "%s %s - %s%s".formatted(isAway ? "@" : "vs", opponent, date, dayGames.length() > 1 ? " (Game %d)".formatted(j + 1) : "");
-                        choices.add(new Command.Choice(name, game.getInt("gamePk")));
-                    }
-                }
-
-                // Ensure no more than 25 choices, and no duplicates
-                choices = choices.stream().distinct().limit(25).toList();
-
-                return choices;
-            }
-        }
-
-        return Collections.emptyList();
+        event.replyChoices(AutocompleteUtil.handleInput(event)).queue();
     }
 
     public static List<Button> buildButtons(String gamePk, GameBlurb blurb) {
         return List.of(
             Button.success("plangame:start:"+gamePk, "Start"),
             Button.secondary("plangame:refresh:"+gamePk, "Refresh"),
-            Button.primary("plangame:lineup:"+gamePk+":away", blurb.away().name() + " Lineup"),
-            Button.primary("plangame:lineup:"+gamePk+":home", blurb.home().name() + " Lineup")
+            Button.primary("plangame:lineup:"+gamePk+":away", blurb.away().name() + " Lineup").withEmoji(TeamEmoji.fromClubName(blurb.away().name())),
+            Button.primary("plangame:lineup:"+gamePk+":home", blurb.home().name() + " Lineup").withEmoji(TeamEmoji.fromClubName(blurb.home().name()))
         );
     }
 

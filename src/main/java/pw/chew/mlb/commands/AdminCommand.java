@@ -43,6 +43,8 @@ public class AdminCommand extends Command {
             export(event);
         } else if (args.startsWith("activity")) {
             activity(event);
+        } else if (args.startsWith("shutdown")) {
+            handleShutdown(event);
         }
     }
 
@@ -59,9 +61,9 @@ public class AdminCommand extends Command {
     private void export(CommandEvent event) {
         List<String> lines = new ArrayList<>();
         var servers = event.getJDA().getGuilds();
-        lines.add("id,memberCount,name,joinedAt");
+        lines.add("id,memberCount,\"name\",joinedAt");
         for (Guild server : servers) {
-            lines.add("%s,%s,%s,%s".formatted(server.getId(), server.getMemberCount(), server.getName(), server.getSelfMember().getTimeJoined().toEpochSecond()));
+            lines.add("%s,%s,\"%s\",%s".formatted(server.getId(), server.getMemberCount(), server.getName(), server.getSelfMember().getTimeJoined().toEpochSecond()));
         }
 
         // export to file
@@ -93,8 +95,8 @@ public class AdminCommand extends Command {
             .clearItems();
 
         Map<String, List<GuildChannel>> channelMap = new HashMap<>();
-        LoggerFactory.getLogger(this.getClass()).debug("There are {} active games", GameFeedHandler.ACTIVE_GAMES.size());
-        for (ActiveGame game : GameFeedHandler.ACTIVE_GAMES) {
+        LoggerFactory.getLogger(this.getClass()).debug("There are {} active games", GameFeedHandler.allGames().size());
+        for (ActiveGame game : GameFeedHandler.allGames()) {
             LoggerFactory.getLogger(this.getClass()).debug("Found active game {}", game);
             GuildChannel channel = event.getJDA().getGuildChannelById(game.channelId());
             var channels = channelMap.get(game.gamePk());
@@ -118,12 +120,12 @@ public class AdminCommand extends Command {
 
     public void botStats(CommandEvent event) {
         long serverCount = event.getJDA().getGuilds().size();
-        long activeGames = GameFeedHandler.ACTIVE_GAMES.size();
+        long activeGames = GameFeedHandler.allGames().size();
         long activeThreads = GameFeedHandler.GAME_THREADS.size();
 
         // Store a list that can only have unique items
         List<String> activeServers = new ArrayList<>();
-        for (ActiveGame game : GameFeedHandler.ACTIVE_GAMES) {
+        for (ActiveGame game : GameFeedHandler.allGames()) {
             GuildChannel channel = jda.getGuildChannelById(game.channelId());
             if (channel == null) continue;
 
@@ -141,5 +143,23 @@ public class AdminCommand extends Command {
             ;
 
         event.reply(embed.build());
+    }
+
+    public void handleShutdown(CommandEvent event) {
+        if (event.getArgs().contains("--now")) {
+            event.getChannel().sendMessage("Bye bye!").queue(m -> shutdown());
+        } else {
+            if (GameFeedHandler.GAME_THREADS.isEmpty()) {
+                event.getChannel().sendMessage("Bye bye!").queue(m -> shutdown());
+            } else {
+                GameFeedHandler.shutdownOnFinish = true;
+                event.getChannel().sendMessage("Waiting for all active games to stop before shutting down. Add `--now` to shut down now safely.").queue();
+            }
+        }
+    }
+
+    public static void shutdown() {
+        LoggerFactory.getLogger(AdminCommand.class).info("Shutting down...");
+        jda.shutdown();
     }
 }

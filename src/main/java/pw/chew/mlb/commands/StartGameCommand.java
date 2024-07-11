@@ -1,9 +1,11 @@
 package pw.chew.mlb.commands;
 
-import com.jagrosh.jdautilities.command.CommandEvent;
 import com.jagrosh.jdautilities.command.SlashCommand;
 import com.jagrosh.jdautilities.command.SlashCommandEvent;
-import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.EmbedBuilder;
+import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.User;
+import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
 import net.dv8tion.jda.api.interactions.commands.Command;
@@ -17,6 +19,7 @@ import pw.chew.chewbotcca.util.RestClient;
 import pw.chew.mlb.listeners.GameFeedHandler;
 import pw.chew.mlb.objects.ActiveGame;
 import pw.chew.mlb.objects.GameState;
+import pw.chew.mlb.util.EmbedUtil;
 
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
@@ -24,8 +27,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-
-import static pw.chew.mlb.listeners.GameFeedHandler.ACTIVE_GAMES;
 
 public class StartGameCommand extends SlashCommand {
 
@@ -48,24 +49,27 @@ public class StartGameCommand extends SlashCommand {
     @Override
     protected void execute(SlashCommandEvent event) {
         String gamePk = event.getOption("game", "0", OptionMapping::getAsString);
-        String startGame = startGame(gamePk, event.getChannel().getId());
-        event.reply(startGame).setEphemeral(!startGame.contains("Starting game")).queue();
+        try {
+            MessageEmbed startGame = startGame(gamePk, event.getGuildChannel(), event.getUser());
+            event.replyEmbeds(startGame).queue();
+        } catch (IllegalStateException e) {
+            event.replyEmbeds(EmbedUtil.failure(e.getMessage())).setEphemeral(true).queue();
+        }
     }
 
-    public static String startGame(String gamePk, String channelId) {
-        for (ActiveGame game : ACTIVE_GAMES) {
-            if (game.channelId().equals(channelId)) {
-                return "This channel is already playing a game: " + game.gamePk() + ". Please wait for it to finish, or stop it with `/stopgame`.";
-            }
+    public static MessageEmbed startGame(String gamePk, GuildMessageChannel channel, User invoker) {
+        String currentGame = GameFeedHandler.currentGame(channel);
+        if (currentGame != null) {
+            throw new IllegalStateException("This channel is already playing a game: " + currentGame + ". Please wait for it to finish, or stop it with `/stopgame`.");
         }
 
         // Start a new thread
-        ActiveGame activeGame = new ActiveGame(gamePk, channelId);
+        ActiveGame activeGame = new ActiveGame(gamePk, channel.getId());
         GameState currentState = GameState.fromPk(gamePk);
 
         // Refuse to start if the game is already over
         if (currentState.isFinal()) {
-            return "This game is already over. Please start a different game.";
+            throw new IllegalStateException("This game is already over. Please start a different game.");
         }
 
         // We can only start games if the start time is less than 30 minutes away
@@ -73,14 +77,22 @@ public class StartGameCommand extends SlashCommand {
         // But, if it's 2:00, we can start the game
         // We can also start it if it's like, 2:56, who cares, maybe we forgot to start it
         if (OffsetDateTime.now().isBefore(currentState.officialDate().minusMinutes(30))) {
-            return "This game is not yet ready to start. Please wait until the game is within 30 minutes of starting.";
+            throw new IllegalStateException("This game is not yet ready to start. Please wait until the game is within 30 minutes of starting.");
         }
 
         GameFeedHandler.addGame(activeGame);
 
-        return "Starting game with gamePk: " + gamePk + "\n" +
-            currentState.awayTeam() + " @ " + currentState.homeTeam() + " at " +
-            TimeFormat.DATE_TIME_SHORT.format(currentState.officialDate());
+        List<String> description = new ArrayList<>();
+        description.add("First Pitch: %s".formatted(TimeFormat.RELATIVE.format(currentState.officialDate())));
+        description.add("\n*Invoked by %s*".formatted(invoker.getAsMention()));
+
+        EmbedBuilder embed = new EmbedBuilder()
+            .setTitle("Starting Game **%s @ %s**".formatted(currentState.away().clubName(), currentState.home().clubName()))
+            .setDescription(String.join("\n", description))
+            .setColor(0x4fc94f)
+            .setFooter("Game PK: %s".formatted(gamePk));
+
+        return embed.build();
     }
 
     @Override
@@ -110,34 +122,5 @@ public class StartGameCommand extends SlashCommand {
         }
 
         event.replyChoices(choices).queue();
-    }
-
-    @Override
-    protected void execute(CommandEvent event) {
-        String gamePk = event.getArgs();
-
-        for (ActiveGame game : ACTIVE_GAMES) {
-            if (game.channelId().equals(event.getTextChannel().getId())) {
-                event.reply("This channel is already playing a game: " + game.gamePk() + ". Please wait for it to finish or stop it.");
-                return;
-            }
-        }
-
-        // make sure the bot has proper perms
-        if (!event.getSelfMember().hasPermission(event.getTextChannel(), Permission.VIEW_CHANNEL, Permission.MESSAGE_SEND, Permission.MESSAGE_EMBED_LINKS)) {
-            event.reply("I do not have the proper permissions to start a game in this channel. I need: " + Permission.VIEW_CHANNEL + ", " + Permission.MESSAGE_SEND + ", " + Permission.MESSAGE_EMBED_LINKS);
-            return;
-        }
-
-        // Start a new thread
-        ActiveGame activeGame = new ActiveGame(gamePk, event.getTextChannel().getId());
-        GameState currentState = GameState.fromPk(gamePk);
-
-        event.getChannel().sendMessage("Starting game with gamePk: " + gamePk + "\n" +
-            currentState.awayTeam() + " @ " + currentState.homeTeam() + " at " +
-            TimeFormat.DATE_TIME_SHORT.format(currentState.officialDate())
-        ).queue();
-
-        GameFeedHandler.addGame(activeGame);
     }
 }

@@ -3,7 +3,9 @@ package pw.chew.mlb.commands;
 import com.jagrosh.jdautilities.command.SlashCommand;
 import com.jagrosh.jdautilities.command.SlashCommandEvent;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
+import net.dv8tion.jda.internal.utils.Checks;
 import pw.chew.mlb.listeners.GameFeedHandler;
+import pw.chew.mlb.objects.ActiveGame;
 import pw.chew.mlb.objects.GameState;
 
 import java.util.Map;
@@ -20,18 +22,32 @@ public class ScoreCommand extends SlashCommand {
 
     @Override
     protected void execute(SlashCommandEvent event) {
+        Checks.notNull(event.getGuild(), "server");
+
         String currentGame = GameFeedHandler.currentGame(event.getGuildChannel());
         if (currentGame == null) {
-            event.reply("No active game in this channel, please start a game first.").setEphemeral(true).queue();
+            ActiveGame currentServerGame = GameFeedHandler.currentServerGame(event.getGuild());
+
+            if (currentServerGame == null) {
+                event.reply("No active game in this server, please start a game somewhere first.").setEphemeral(true).queue();
+                return;
+            }
+
+            event.reply(buildScore(currentServerGame.gamePk(), currentServerGame.channelId())).setEphemeral(true).queue();
         } else {
-            event.reply(buildScore(currentGame)).setEphemeral(true).queue();
+            event.reply(buildScore(currentGame, null)).setEphemeral(true).queue();
         }
     }
 
-    public String buildScore(String gamePk) {
+    public String buildScore(String gamePk, String channelId) {
         GameState state = GameState.fromPk(gamePk);
 
-        return String.format("""
+        String channelMention = "";
+        if (channelId != null) {
+            channelMention = String.format("*Showing score from <#%s>*\n\n", channelId);
+        }
+
+        return String.format(channelMention + """
                     Score: %s %s - %s %s
                     Inning: %s %s, %s out(s)
                     
@@ -43,7 +59,7 @@ public class ScoreCommand extends SlashCommand {
                     On Base:
                     %s
                     """,
-            state.awayTeam(), state.awayScore(), state.homeScore(), state.homeTeam(),
+            state.away().clubName(), state.away().runs(), state.home().runs(), state.home().clubName(),
             state.inningState(), state.inningOrdinal(), state.outs(),
             state.summary(),
             state.currentPitcher(), state.currentBatter(),

@@ -3,16 +3,22 @@ package pw.chew.mlb.listeners;
 import com.jagrosh.jdautilities.commons.utils.TableBuilder;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
+import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import org.jetbrains.annotations.NotNull;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.mapdb.DB;
+import org.mapdb.DBMaker;
+import org.mapdb.HTreeMap;
+import org.mapdb.Serializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import pw.chew.mlb.commands.ShutdownCommand;
+import pw.chew.mlb.commands.AdminCommand;
 import pw.chew.mlb.models.Bet;
 import pw.chew.mlb.objects.ActiveGame;
 import pw.chew.mlb.objects.BetHelper;
@@ -34,7 +40,15 @@ import static pw.chew.mlb.MLBBot.jda;
 public class GameFeedHandler {
     private static final Logger logger = LoggerFactory.getLogger(GameFeedHandler.class);
     public final static Map<String, Thread> GAME_THREADS = new HashMap<>();
-    public final static List<ActiveGame> ACTIVE_GAMES = new ArrayList<>();
+
+    private static final DB db = DBMaker.fileDB("games.db").fileMmapEnable().closeOnJvmShutdown().checksumHeaderBypass().make();
+    /**
+     * A map of active games. "String" is the Channel ID. ActiveGame is an object containing the gamePk and channelId.
+     */
+    private static final HTreeMap<String, ActiveGame> gamesMap = db
+        .hashMap("games", Serializer.STRING, new ActiveGame.EntrySerializer())
+        .createOrOpen();
+
     public static boolean shutdownOnFinish = false;
 
     /**
@@ -42,9 +56,12 @@ public class GameFeedHandler {
      * If no game is currently active, the game will be started, otherwise it will be added to the active games list.
      *
      * @param game The game to add to the active games list.
+     * @param modifyDb Whether to modify the database or not. This should only be false when booting.
      */
-    public static void addGame(ActiveGame game) {
-        ACTIVE_GAMES.add(game);
+    public static void addGame(ActiveGame game, boolean modifyDb) {
+        if (modifyDb) {
+            gamesMap.put(game.channelId(), game);
+        }
         // make sure config is cached
         ChannelConfig.getConfig(game.channelId());
 
@@ -60,19 +77,29 @@ public class GameFeedHandler {
     }
 
     /**
+     * Adds a game to the active games list.
+     * If no game is currently active, the game will be started, otherwise it will be added to the active games list.
+     *
+     * @param game The game to add to the active games list.
+     */
+    public static void addGame(ActiveGame game) {
+        addGame(game, true);
+    }
+
+    /**
      * Stops (or "unsubscribes") a game from the active games list.
      *
      * @param game The game to stop from the active games list.
      */
     public static void stopGame(ActiveGame game) {
         int currentGames = 0;
-        for (ActiveGame activeGame : ACTIVE_GAMES) {
+        for (ActiveGame activeGame : gamesMap.values()) {
             if (game.gamePk().equals(activeGame.gamePk())) {
                 currentGames++;
             }
         }
 
-        ACTIVE_GAMES.remove(game);
+        gamesMap.remove(game.channelId());
 
         // If this is the last game running, stop the thread
         if (currentGames == 1) {
@@ -86,6 +113,15 @@ public class GameFeedHandler {
     }
 
     /**
+     * Returns a list of all active games.
+     *
+     * @return A list of all active games.
+     */
+    public static List<ActiveGame> allGames() {
+        return new ArrayList<>(gamesMap.values());
+    }
+
+    /**
      * Removes a thread from GAME_THREADS, with checks.
      *
      * @param gamePk The gamePk of the thread to remove.
@@ -96,7 +132,7 @@ public class GameFeedHandler {
         GAME_THREADS.remove(gamePk);
 
         if (GAME_THREADS.isEmpty() && shutdownOnFinish) {
-            ShutdownCommand.shutdown();
+            AdminCommand.shutdown();
         }
     }
 
@@ -108,7 +144,7 @@ public class GameFeedHandler {
      * @return The gamePk if the game was stopped, null if no game was found in the provided text channel.
      */
     public static String stopGame(GuildMessageChannel channel) {
-        for (ActiveGame game : ACTIVE_GAMES) {
+        for (ActiveGame game : gamesMap.values()) {
             if (game.channelId().equals(channel.getId())) {
                 stopGame(game);
                 return game.gamePk();
@@ -125,9 +161,25 @@ public class GameFeedHandler {
      * @return The current game for the provided text channel, null if no game is currently running in the provided text channel.
      */
     public static String currentGame(GuildMessageChannel channel) {
-        for (ActiveGame game : ACTIVE_GAMES) {
+        for (ActiveGame game : gamesMap.values()) {
             if (game.channelId().equals(channel.getId())) {
                 return game.gamePk();
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Finds the first channel with an ongoing game and returns the score of it.
+     *
+     * @param server The server to get the score from.
+     * @return The score of the first ongoing game in the server.
+     */
+    public static ActiveGame currentServerGame(@NotNull Guild server) {
+        for (ActiveGame game : gamesMap.values()) {
+            if (server.getGuildChannelById(game.channelId()) != null) {
+                return game;
             }
         }
 
@@ -155,6 +207,16 @@ public class GameFeedHandler {
         int fails = 0;
         while (!currentState.gameState().equals("Final")) {
             GameState recentState = GameState.fromPk(gamePk);
+
+            if (recentState.isCancelled()) {
+                endGame(gamePk, recentState, "\nUnfortunately, this game was cancelled.");
+                return;
+            }
+
+            if (recentState.isSuspended()) {
+                endGame(gamePk, recentState, "\nUnfortunately, this game has been suspended. It will resume at a later time.");
+                return;
+            }
 
             if (recentState.failed()) {
                 int retryIn = fails + 3;
@@ -209,7 +271,7 @@ public class GameFeedHandler {
             if (recentState.atBatIndex() >= 0 && !recentState.currentPlayDescription().equals(currentState.currentPlayDescription())) {
                 logger.debug("New play description for gamePk " + gamePk + ": " + recentState.currentPlayDescription());
 
-                boolean scoringPlay = recentState.homeScore() != currentState.homeScore() || recentState.awayScore() != currentState.awayScore();
+                boolean scoringPlay = recentState.home().runs() != currentState.home().runs() || recentState.away().runs() != currentState.away().runs();
                 boolean hasOut = recentState.outs() != currentState.outs() && recentState.outs() > 0;
 
                 EmbedBuilder embed = new EmbedBuilder()
@@ -228,10 +290,10 @@ public class GameFeedHandler {
 
                 // Check if score changed
                 if (scoringPlay) {
-                    boolean homeScored = recentState.homeScore() > currentState.homeScore();
+                    boolean homeScored = recentState.home().runs() > currentState.home().runs();
 
-                    embed.setTitle((homeScored ? recentState.homeTeam() : recentState.awayTeam()) + " scored!");
-                    embed.addField("Score", recentState.awayTeam() + " " + recentState.awayScore() + " - " + recentState.homeScore() + " " + recentState.homeTeam(), true);
+                    embed.setTitle((homeScored ? recentState.home().clubName() : recentState.away().clubName()) + " scored!");
+                    embed.addField("Score", recentState.away().clubName() + " " + recentState.away().runs() + " - " + recentState.home().runs() + " " + recentState.home().clubName(), true);
                 }
 
                 // Check if outs changed. Display if it did.
@@ -244,7 +306,7 @@ public class GameFeedHandler {
                     embed.addField("Outs", recentState.outs() + " (+" + oldOuts + ")", true);
 
                     if (recentState.outs() == 3 && !scoringPlay) {
-                        embed.addField("Score", recentState.awayTeam() + " " + recentState.awayScore() + " - " + recentState.homeScore() + " " + recentState.homeTeam(), true);
+                        embed.addField("Score", recentState.away().clubName() + " " + recentState.away().runs() + " - " + recentState.home().runs() + " " + recentState.home().clubName(), true);
                     }
                 }
 
@@ -271,20 +333,28 @@ public class GameFeedHandler {
                     JSONObject advisory = newAdvisories.get(i);
                     JSONObject details = advisory.getJSONObject("details");
 
-                    logger.debug("New advisory: " + advisory);
+                    logger.debug("New advisory: {}", advisory);
+
+                    String event = details.getString("event");
+                    String description = details.getString("description");
+
+                    if (description.replaceAll("\\.", "").equals(event)) {
+                        // reset description if it's the same as the event
+                        description = null;
+                    }
 
                     EmbedBuilder detailEmbed = new EmbedBuilder()
-                        .setTitle(details.getString("event"))
-                        .setDescription(details.getString("description"));
+                        .setTitle(event)
+                        .setDescription(description);
 
                     // Check if score changed
-                    if (details.has("isScoringPlay") && details.getBoolean("isScoringPlay")) {
+                    if (details.optBoolean("isScoringPlay", false)) {
                         int homeScore = details.getInt("homeScore");
                         int awayScore = details.getInt("awayScore");
                         boolean homeScored = homeScore > awayScore;
 
-                        detailEmbed.setAuthor((homeScored ? recentState.homeTeam() : recentState.awayTeam()) + " scored!");
-                        detailEmbed.addField("Score", recentState.awayTeam() + " " + details.getInt("awayScore") + " - " + details.getInt("homeScore") + " " + recentState.homeTeam(), true);
+                        detailEmbed.setAuthor((homeScored ? recentState.home().clubName() : recentState.away().clubName()) + " scored!");
+                        detailEmbed.addField("Score", recentState.away().clubName() + " " + details.getInt("awayScore") + " - " + details.getInt("homeScore") + " " + recentState.home().clubName(), true);
                     }
 
                     queuedAdvisories.add(detailEmbed.build());
@@ -321,11 +391,6 @@ public class GameFeedHandler {
             }
         }
 
-        if (currentState.isCancelled()) {
-            endGame(gamePk, currentState, "\nUnfortunately, this game was cancelled.");
-            return;
-        }
-
         // Build a scorecard embed
         EmbedBuilder scorecardEmbed = new EmbedBuilder();
         scorecardEmbed.setTitle("Scorecard");
@@ -351,8 +416,8 @@ public class GameFeedHandler {
         String[][] tableData = new String[totalInnings + 5][2];
 
         // Add team names
-        tableData[0][0] = currentState.awayTeam();
-        tableData[0][1] = currentState.homeTeam();
+        tableData[0][0] = currentState.away().clubName();
+        tableData[0][1] = currentState.home().clubName();
 
         for (int i = 0; i < totalInnings; i++) {
             JSONObject inning = inningData.getJSONObject(i);
@@ -514,7 +579,9 @@ public class GameFeedHandler {
         }
 
         // Remove the games from the active games list
-        ACTIVE_GAMES.removeIf(game -> game.gamePk().equals(gamePk));
+        for (ActiveGame game : getGames(gamePk)) {
+            stopGame(game);
+        }
 
         // Remove the game thread
         removeThread(gamePk);
@@ -567,7 +634,7 @@ public class GameFeedHandler {
     public static List<ActiveGame> getGames(String gamePk) {
         List<ActiveGame> games = new ArrayList<>();
 
-        for (ActiveGame game : ACTIVE_GAMES) {
+        for (ActiveGame game : gamesMap.values()) {
             if (!game.gamePk().equals(gamePk)) continue;
 
             games.add(game);

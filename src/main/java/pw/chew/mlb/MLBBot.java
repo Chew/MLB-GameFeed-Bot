@@ -18,7 +18,7 @@ import pw.chew.mlb.commands.ConfigCommand;
 import pw.chew.mlb.commands.PlanGameCommand;
 import pw.chew.mlb.commands.ScoreCommand;
 import pw.chew.mlb.commands.SetInfoCommand;
-import pw.chew.mlb.commands.ShutdownCommand;
+import pw.chew.mlb.commands.StandingsCommand;
 import pw.chew.mlb.commands.StartGameCommand;
 import pw.chew.mlb.commands.StopGameCommand;
 import pw.chew.mlb.listeners.InteractionHandler;
@@ -53,15 +53,20 @@ public class MLBBot {
         CommandClientBuilder client = new CommandClientBuilder();
 
         // Set the client settings
-        client.setActivity(Activity.customStatus("Spring Training time! We're beta testing new features :) Betting, Spanish support, and more, coming soon!"));
-        client.setOwnerId("476488167042580481");
+        client.setActivity(Activity.watching("the 2024 season!"));
+        client.setOwnerId(prop.getProperty("userId", "476488167042580481"));
         client.setPrefix("woody!");
 
         client.useHelpBuilder(false);
 
-        client.addCommands(new ShutdownCommand(), new AdminCommand());
-        client.addSlashCommands(new StartGameCommand(), new StopGameCommand(), new ScoreCommand(), new SetInfoCommand(), new ConfigCommand(),
-            new PlanGameCommand(), new BettingCommand());
+        client.addCommands(new AdminCommand());
+        client.addSlashCommands(
+            // Main commands
+            new StartGameCommand(), new StopGameCommand(), new ScoreCommand(), new SetInfoCommand(), new ConfigCommand(),
+            new PlanGameCommand()
+            , // Util Commands
+            new StandingsCommand(), new BettingCommand()
+        );
 
         //client.forceGuildOnly("148195924567392257");
 

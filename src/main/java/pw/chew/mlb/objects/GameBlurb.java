@@ -95,16 +95,21 @@ public record GameBlurb(String gamePk, JSONObject data) {
                 away().name(), away().wins(), away().losses(), // away record
                 home().name(), home().wins(), home().losses() // home record
             ), true)
-            .addField(":tv: Broadcasts", String.join("\n", tv), true)
-            .addField(":radio: Broadcasts", String.join("\n", radio), true).build();
+            .addField(":tv: Watch", String.join("\n", tv), true)
+            .addField(":radio: Listen", String.join("\n", radio), true)
+            .setFooter("Embed Last Updated (lineups are always up to date)").setTimestamp(OffsetDateTime.now()).build();
     }
 
+    /**
+     * Converts the blurb embed to text
+     *
+     * @return The text version of the blurb
+     */
     public String blurbText() {
         MessageEmbed blurb = blurb();
-        return blurb.getTitle() + "\n" +
+        return "# " + blurb.getTitle() + "\n" +
             blurb.getDescription() + "\n" +
-            "\n" +
-            blurb().getFields().stream().map(field -> "**" + field.getName() + "**\n" +  field.getValue()).collect(Collectors.joining("\n\n")) + "\n\n" +
+            blurb().getFields().stream().map(field -> "## " + field.getName() + "\n" +  field.getValue()).collect(Collectors.joining("\n")) + "\n\n" +
             "Game Link: " + blurb.getUrl();
     }
 

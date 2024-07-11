@@ -1,4 +1,4 @@
-package pw.chew.mlb.objects;
+package pw.chew.mlb.util;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -10,6 +10,7 @@ import pw.chew.chewbotcca.util.RestClient;
 
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,11 +49,14 @@ public class MLBAPIUtil {
         return teams;
     }
 
-    public static List<Player> getLineup(String gamePk, String homeAway) {
-        JSONObject data = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1.1/game/%s/feed/live?language=en".formatted(gamePk)));
+    public static Map<String, List<Player>> getLineup(String gamePk, String homeAway) {
+        JSONObject data = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1.1/game/%s/feed/live?language=en&fields=liveData,boxscore,teams,away,home,players,id,fullName,jerseyNumber,position,name,abbreviation,seasonStats,pitching,era,wins,losses,strikeOuts,batting,avg,ops,homeRuns,gameData,probablePitchers,away,home,id"
+            .formatted(gamePk)));
         JSONObject boxScore = data.getJSONObject("liveData")
             .getJSONObject("boxscore")
             .getJSONObject("teams");
+
+        Map<String, List<Player>> response = new HashMap<>();
 
         Map<Integer, Player> players = new HashMap<>();
         for (String team :new String[]{"home", "away"}) {
@@ -63,6 +67,7 @@ public class MLBAPIUtil {
             }
         }
 
+        // get the batting order
         JSONArray lineup = boxScore.getJSONObject(homeAway).getJSONArray("battingOrder");
         List<Player> lineupPlayers = new ArrayList<>();
         for (Object item : lineup) {
@@ -72,7 +77,48 @@ public class MLBAPIUtil {
             lineupPlayers.add(player);
         }
 
-        return lineupPlayers;
+        response.put("Batting Order", lineupPlayers);
+
+        // add pitcher to end
+        JSONObject probablePitchers = data.getJSONObject("gameData").getJSONObject("probablePitchers");
+        if (probablePitchers.has(homeAway)) {
+            int probablePitcher = probablePitchers.getJSONObject(homeAway).getInt("id");
+            Player pitcher = players.get(probablePitcher);
+            response.put("Probable Pitcher", Collections.singletonList(pitcher));
+        } else {
+            // empty list
+            response.put("Probable Pitcher", Collections.emptyList());
+        }
+
+        return response;
+    }
+
+    /**
+     * Gets the current MLB standings.
+     *
+     * TODO: Support MiLB.
+     */
+    public static Map<String, List<Standing>> getStandings() {
+        JSONArray standings = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/standings?leagueId=103,104&hydrate=division&season=%s".formatted(SEASON))).getJSONArray("records");
+        HashMap<String, List<Standing>> standingsMap = new HashMap<>();
+        for (int i = 0; i < standings.length(); i++) {
+            JSONObject division = standings.getJSONObject(i);
+            // division > name
+            String divisionName = division.getJSONObject("division").getString("name");
+
+            // division records
+            JSONArray teamRecords = division.getJSONArray("teamRecords");
+
+            // convert each teamRecord object to a Standing object
+            List<Standing> divisionStandings = new ArrayList<>();
+            for (int j = 0; j < teamRecords.length(); j++) {
+                divisionStandings.add(new Standing(teamRecords.getJSONObject(j)));
+            }
+
+            standingsMap.put(divisionName, divisionStandings);
+        }
+        return standingsMap;
+
     }
 
     public record Sports(JSONArray raw) {
@@ -98,6 +144,11 @@ public class MLBAPIUtil {
         }
 
         public List<Command.Choice> potentialChoices(String query) {
+            // If we don't have an input, return all choices
+            if (query.isBlank()) {
+                return asChoices();
+            }
+
             List<Command.Choice> potential = new ArrayList<>();
 
             // Search the teams by an exact starting match
@@ -147,6 +198,18 @@ public class MLBAPIUtil {
             return raw.getJSONObject("seasonStats").getJSONObject("pitching").getString("era");
         }
 
+        public int wins() {
+            return raw.getJSONObject("seasonStats").getJSONObject("pitching").getInt("wins");
+        }
+
+        public int losses() {
+            return raw.getJSONObject("seasonStats").getJSONObject("pitching").getInt("losses");
+        }
+
+        public int strikeouts() {
+            return raw.getJSONObject("seasonStats").getJSONObject("pitching").getInt("strikeOuts");
+        }
+
         public String avg() {
             return raw.getJSONObject("seasonStats").getJSONObject("batting").getString("avg");
         }
@@ -161,20 +224,83 @@ public class MLBAPIUtil {
 
         public String friendlyString() {
             if (isPitcher()) {
-                return "%s (%s ERA)".formatted(name(), era());
+                return "%s (%s - %s | %s ERA | %s K)".formatted(name(), wins(), losses(), era(), strikeouts());
             } else {
                 return "%s (%s) - %s AVG, %s OPS, %s HR".formatted(name(), position().abbreviation(), avg(), ops(), homers());
             }
         }
     }
 
-    private record Position(JSONObject raw) {
+    public record Position(JSONObject raw) {
         public String name() {
             return raw.getString("name");
         }
 
         public String abbreviation() {
             return raw.getString("abbreviation");
+        }
+    }
+
+    public record Standing(JSONObject raw) {
+        public String teamName() {
+            // team > name
+            return raw.getJSONObject("team").getString("name");
+        }
+
+        public String streak() {
+            // streak > streakCode
+            return raw.getJSONObject("streak").getString("streakCode");
+        }
+
+        public String rank() {
+            // divisionRank
+            return raw.getString("divisionRank");
+        }
+
+        public int wins() {
+            // wins
+            return raw.getInt("wins");
+        }
+
+        public int losses() {
+            // losses
+            return raw.getInt("losses");
+        }
+
+        public String winPct() {
+            // winningPercentage
+            return raw.getString("winningPercentage");
+        }
+
+        public int runDifferential() {
+            // runDifferential
+            return raw.getInt("runDifferential");
+        }
+
+        public String gamesBack() {
+            // gamesBack
+            return raw.getString("gamesBack");
+        }
+
+        public String homeRecord() {
+            // records > splitRecords[0] *jsonobject*
+            JSONObject home = raw.getJSONObject("records").getJSONArray("splitRecords").getJSONObject(0);
+            // wins - losses
+            return "%s-%s".formatted(home.getInt("wins"), home.getInt("losses"));
+        }
+
+        public String awayRecord() {
+            // records > splitRecords[1] *jsonobject*
+            JSONObject away = raw.getJSONObject("records").getJSONArray("splitRecords").getJSONObject(1);
+            // wins - losses
+            return "%s-%s".formatted(away.getInt("wins"), away.getInt("losses"));
+        }
+
+        public String lastTen() {
+            // records > splitRecords[8] *jsonobject*
+            JSONObject lastTen = raw.getJSONObject("records").getJSONArray("splitRecords").getJSONObject(8);
+            // wins - losses
+            return "%s-%s".formatted(lastTen.getInt("wins"), lastTen.getInt("losses"));
         }
     }
 }
