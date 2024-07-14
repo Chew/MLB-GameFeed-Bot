@@ -1,11 +1,14 @@
 package pw.chew.mlb.objects;
 
+import org.hibernate.Session;
 import org.hibernate.Transaction;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.LoggerFactory;
 import pw.chew.chewbotcca.util.DatabaseHelper;
 import pw.chew.mlb.listeners.GameFeedHandler;
 import pw.chew.mlb.models.Bet;
 import pw.chew.mlb.models.BetKind;
+import pw.chew.mlb.models.Profile;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -61,5 +64,66 @@ public class BetHelper {
 
         // save all the bets
         trans.commit();
+    }
+
+    /**
+     * Retrieves a profile for the provided user id.
+     * If there is no profile present, it will create a profile and award a bet.
+     *
+     * @param userId the user id
+     * @return the profile
+     */
+    public static Profile retrieveProfile(long userId) {
+        var session = DatabaseHelper.getSessionFactory().openSession();
+        Profile profile = session.find(Profile.class, userId);
+        if (profile == null) {
+            Transaction trans = session.beginTransaction();
+            profile = new Profile();
+            profile.setId(userId);
+            session.save(profile);
+
+            // add initial betting credits
+            Bet bet = new Bet();
+            bet.setKind(BetKind.AUTOMATED);
+            bet.setBet(0);
+            bet.setPayout(100);
+            bet.setReason("Initial betting credits");
+            bet.setUserId(userId);
+            session.save(bet);
+
+            trans.commit();
+        }
+        session.close();
+        return profile;
+    }
+
+    /**
+     * Adds an automated bet for the user.
+     *
+     * @param userId the user id
+     * @param amount the amount to add to the account
+     * @param reason the reason for the bet
+     * @param session the session to use, null if to open a new session. if a session is provided, the transaction won't commit
+     * @return the bet
+     */
+    public static Bet addAutomatedBet(long userId, int amount, String reason, @Nullable Session session) {
+        // open session and transaction
+        if (session == null) {
+            session = DatabaseHelper.getSessionFactory().openSession();
+        }
+        Transaction trans = session.beginTransaction();
+
+        // add initial betting credits
+        Bet bet = new Bet();
+        bet.setKind(BetKind.AUTOMATED);
+        bet.setBet(0); // 0 bet because the user didn't do anything
+        bet.setPayout(amount);
+        bet.setReason(reason);
+        bet.setUserId(userId);
+
+        session.save(bet);
+        trans.commit();
+
+        return bet;
     }
 }

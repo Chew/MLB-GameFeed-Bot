@@ -13,8 +13,10 @@ import pw.chew.chewbotcca.util.DatabaseHelper;
 import pw.chew.mlb.models.Bet;
 import pw.chew.mlb.models.BetKind;
 import pw.chew.mlb.models.Profile;
+import pw.chew.mlb.objects.BetHelper;
 import pw.chew.mlb.objects.GameBlurb;
 import pw.chew.mlb.objects.GameState;
+import pw.chew.mlb.util.AutocompleteUtil;
 
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -45,7 +47,7 @@ public class BettingCommand extends SlashCommand {
         @Override
         protected void execute(SlashCommandEvent event) {
             // try to get profile
-            Profile profile = retrieveProfile(event.getUser().getIdLong());
+            Profile profile = BetHelper.retrieveProfile(event.getUser().getIdLong());
             List<Bet> bets = retrieveBets(event.getUser().getIdLong());
 
             // build embed
@@ -140,7 +142,7 @@ public class BettingCommand extends SlashCommand {
             bet.setReason("Daily Credits");
             bet.setUserId(userId);
 
-            Profile profile = retrieveProfile(userId);
+            Profile profile = BetHelper.retrieveProfile(userId);
             profile.setCredits(profile.getCredits() + 10);
 
             Transaction trans = session.beginTransaction();
@@ -191,7 +193,7 @@ public class BettingCommand extends SlashCommand {
                 .uniqueResult();
 
             // Ensure we have enough credit to bet
-            Profile user = retrieveProfile(event.getUser().getIdLong());
+            Profile user = BetHelper.retrieveProfile(event.getUser().getIdLong());
 
             // Get game blurb
             GameBlurb blurb = new GameBlurb(gamePk + "");
@@ -262,7 +264,7 @@ public class BettingCommand extends SlashCommand {
 
         @Override
         public void onAutoComplete(CommandAutoCompleteInteractionEvent event) {
-            event.replyChoices(PlanGameCommand.handleAutoComplete(event)).queue();
+            event.replyChoices(AutocompleteUtil.handleInput(event)).queue();
         }
     }
 
@@ -274,32 +276,9 @@ public class BettingCommand extends SlashCommand {
 
         @Override
         protected void execute(SlashCommandEvent event) {
+            List<Bet> bets = retrieveBets(event.getUser().getIdLong());
 
         }
-    }
-
-    public static Profile retrieveProfile(long userId) {
-        var session = DatabaseHelper.getSessionFactory().openSession();
-        Profile profile = session.find(Profile.class, userId);
-        if (profile == null) {
-            Transaction trans = session.beginTransaction();
-            profile = new Profile();
-            profile.setId(userId);
-            session.save(profile);
-
-            // add initial betting credits
-            Bet bet = new Bet();
-            bet.setKind(BetKind.AUTOMATED);
-            bet.setBet(0);
-            bet.setPayout(100);
-            bet.setReason("Initial betting credits");
-            bet.setUserId(userId);
-            session.save(bet);
-
-            trans.commit();
-        }
-        session.close();
-        return profile;
     }
 
     public static List<Bet> retrieveBets(long userId) {
