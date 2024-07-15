@@ -206,16 +206,6 @@ public class GameFeedHandler {
         while (!currentState.gameState().equals("Final")) {
             GameState recentState = GameState.fromPk(gamePk);
 
-            if (recentState.isCancelled()) {
-                endGame(gamePk, recentState, "\nUnfortunately, this game was cancelled.");
-                return;
-            }
-
-            if (recentState.isSuspended()) {
-                endGame(gamePk, recentState, "\nUnfortunately, this game has been suspended. It will resume at a later time.");
-                return;
-            }
-
             if (recentState.failed()) {
                 int retryIn = fails + 3;
                 retryIn = Math.min(20, retryIn);
@@ -258,6 +248,16 @@ public class GameFeedHandler {
                 sendMessages(notifier.build(), gamePk);
             }
             fails = 0;
+
+            if (recentState.isCancelled()) {
+                endGame(gamePk, recentState, "\nUnfortunately, this game was cancelled.");
+                return;
+            }
+
+            if (recentState.isSuspended()) {
+                endGame(gamePk, recentState, "\nUnfortunately, this game has been suspended. It will resume at a later time.");
+                return;
+            }
 
             // Check to see if the game has changed state
             if (recentState.gameState().equals("Final")) {
