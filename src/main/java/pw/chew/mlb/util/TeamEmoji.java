@@ -1,108 +1,71 @@
 package pw.chew.mlb.util;
 
-import net.dv8tion.jda.api.entities.emoji.CustomEmoji;
+import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
-import pw.chew.mlb.MLBBot;
+import net.dv8tion.jda.api.utils.data.DataObject;
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.slf4j.LoggerFactory;
+import pw.chew.chewbotcca.util.RestClient;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Emoii come from a server, so it may not render if the bot is not in that server!
  * TODO: A better way to handle these, this is a mess.
  */
-public class TeamEmoji {
-    // can't be instantiated
-    private TeamEmoji() {}
+public record TeamEmoji(String name, String clubName, int id, Emoji emoji) {
+    private static final List<TeamEmoji> cache = new ArrayList<>();
 
-    // emoji by division, alphabetically so people don't get mad lol
+    public static void setupEmoji(JDA jda) {
+        LoggerFactory.getLogger(TeamEmoji.class).debug("Setting up emojis...");
 
-    // AMERICAN LEAGUE WEST //
-    public final static CustomEmoji ANGELS = Emoji.fromCustom("angels", 972745155897614406L, false);
-    public final static CustomEmoji ASTROS = Emoji.fromCustom("astros", 972745155000012800L, false);
-    public final static CustomEmoji ATHLETICS = Emoji.fromCustom("athletics", 972745154542862346L, false);
-    public final static CustomEmoji MARINERS = Emoji.fromCustom("mariners", 972745156082139156L, false);
-    public final static CustomEmoji RANGERS = Emoji.fromCustom("rangers", 972745153196470292L, false);
+        // Retrieve Emoji from Discoed
+        JSONArray teams = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/teams?sportIds=1,11,12,13,14&season=2024&fields=teams,id,name,clubName,active")).getJSONArray("teams");
+        JSONArray emojis = new JSONObject(RestClient.get("https://discord.com/api/v10/applications/%s/emojis".formatted(jda.getSelfUser().getId()), jda.getToken())).getJSONArray("items");
 
-    // AMERICAN LEAGUE EAST //
-    public final static CustomEmoji BLUE_JAYS = Emoji.fromCustom("bluejays", 972745155742425108L, false);
-    public final static CustomEmoji RAYS = Emoji.fromCustom("rays", 972745154857431100L, false);
-    public final static CustomEmoji RED_SOX = Emoji.fromCustom("redsox", 972745153129361448L, false);
-    public final static CustomEmoji ORIOLES = Emoji.fromCustom("orioles", 972745154924511312L, false);
-    public final static CustomEmoji YANKEES = Emoji.fromCustom("yankees", 972745154622554133L, false);
+        // iterate through emojis
+        for (Object emojiObj : emojis) {
+            JSONObject emojiJsonObj = (JSONObject) emojiObj;
+            DataObject emojiData = DataObject.fromJson(emojiJsonObj.toString());
+            Emoji emoji = Emoji.fromData(emojiData);
 
-    // AMERICAN LEAGUE CENTRAL //
-    public final static CustomEmoji GUARDIANS = Emoji.fromCustom("guardians", 972745156782600222L, false);
-    public final static CustomEmoji ROYALS = Emoji.fromCustom("royals", 972745154387644476L, false);
-    public final static CustomEmoji TIGERS = Emoji.fromCustom("tigers", 972745152911269938L, false);
-    public final static CustomEmoji TWINS = Emoji.fromCustom("twins", 1046992241786376272L, false);
-    public final static CustomEmoji WHITE_SOX = Emoji.fromCustom("whitesox", 972745152592506961L, false);
+            String emojiName = emoji.getName();
+            // we need everything after the FINAL _
+            String emojiTeamId = emojiName.substring(emojiName.lastIndexOf("_") + 1);
+            int emojiTeamIdInt = Integer.parseInt(emojiTeamId);
 
-    // NATIONAL LEAGUE WEST //
-    public final static CustomEmoji DBACKS = Emoji.fromCustom("dbacks", 1175177772491083776L, false);
-    public final static CustomEmoji DODGERS = Emoji.fromCustom("dodgers", 972745931659300875L, false);
-    public final static CustomEmoji GIANTS = Emoji.fromCustom("giants", 972745932825329684L, false);
-    public final static CustomEmoji PADRES = Emoji.fromCustom("padres", 972745932376530964L, false);
-    public final static CustomEmoji ROCKIES = Emoji.fromCustom("rockies", 972745936147214376L, false);
+            // check hardcoded first
+            switch (emojiTeamIdInt) {
+                case 159 -> cache.add(new TeamEmoji("American League All-Stars", "American", 159, emoji));
+                case 160 -> cache.add(new TeamEmoji("National League All-Stars", "National", 160, emoji));
+                case 0 -> cache.add(new TeamEmoji("Unknown", "Unknown", 0, emoji));
+            }
 
-    // NATIONAL LEAGUE EAST //
-    public final static CustomEmoji BRAVES = Emoji.fromCustom("braves", 972745936180760586L, false);
-    public final static CustomEmoji MARLINS = Emoji.fromCustom("marlins", 972745926378664006L, false);
-    public final static CustomEmoji METS = Emoji.fromCustom("mets", 972745935853613076L, false);
-    public final static CustomEmoji NATIONALS = Emoji.fromCustom("nationals", 972745940974854206L, false);
-    public final static CustomEmoji PHILLIES = Emoji.fromCustom("phillies", 972745932154236999L, false);
+            // iterate through teams
+            for (Object teamObj : teams) {
+                JSONObject teamJsonObj = (JSONObject) teamObj;
+                if (teamJsonObj.getInt("id") == emojiTeamIdInt) {
+                    TeamEmoji teamEmoji = new TeamEmoji(teamJsonObj.getString("name"), teamJsonObj.getString("clubName"), emojiTeamIdInt, emoji);
+                    cache.add(teamEmoji);
+                    break;
+                }
+            }
+        }
 
-    // NATIONAL LEAGUE CENTRAL //
-    public final static CustomEmoji BREWERS = Emoji.fromCustom("brewers", 972745936910565426L, false);
-    public final static CustomEmoji CUBS = Emoji.fromCustom("cubs", 972745935895547914L, false);
-    public final static CustomEmoji CARDINALS = Emoji.fromCustom("cardinals", 972745939708153876L, false);
-    public final static CustomEmoji PIRATES = Emoji.fromCustom("pirates", 972745932229718056L, false);
-    public final static CustomEmoji REDS = Emoji.fromCustom("reds", 972768965921210458L, false);
-
-    // UNKNOWN ?? Placeholder too //
-    public final static CustomEmoji UNKNOWN = Emoji.fromCustom("unknown", 531601549668122654L, false);
+        LoggerFactory.getLogger(TeamEmoji.class).debug("Set up {} emoji!", cache.size());
+    }
 
     /**
      * Gets an emoji based on the team name. This is the FULL name, e.g Texas Rangers
      *
      * @return the emoji
      */
-    public static CustomEmoji fromName(String input) {
-        // only the production bot has access to the full list
-        if (!MLBBot.jda.getSelfUser().getId().equals("987144502374436895")) {
-            return UNKNOWN;
-        }
+    public static Emoji fromName(String input) {
+        TeamEmoji unknownEmoji = cache.stream().filter(teamEmoji -> teamEmoji.name().equals("Unknown")).findFirst().orElseThrow();
 
-        return switch (input) {
-            case "Arizona Diamondbacks" -> DBACKS;
-            case "Atlanta Braves" -> BRAVES;
-            case "Baltimore Orioles" -> ORIOLES;
-            case "Boston Red Sox" -> RED_SOX;
-            case "Chicago Cubs" -> CUBS;
-            case "Chicago White Sox" -> WHITE_SOX;
-            case "Cincinnati Reds" -> REDS;
-            case "Cleveland Guardians" -> GUARDIANS;
-            case "Colorado Rockies" -> ROCKIES;
-            case "Detroit Tigers" -> TIGERS;
-            case "Houston Astros" -> ASTROS;
-            case "Kansas City Royals" -> ROYALS;
-            case "Los Angeles Angels" -> ANGELS;
-            case "Los Angeles Dodgers" -> DODGERS;
-            case "Miami Marlins" -> MARLINS;
-            case "Milwaukee Brewers" -> BREWERS;
-            case "Minnesota Twins" -> TWINS;
-            case "New York Mets" -> METS;
-            case "New York Yankees" -> YANKEES;
-            case "Oakland Athletics" -> ATHLETICS;
-            case "Philadelphia Phillies" -> PHILLIES;
-            case "Pittsburgh Pirates" -> PIRATES;
-            case "San Diego Padres" -> PADRES;
-            case "San Francisco Giants" -> GIANTS;
-            case "Seattle Mariners" -> MARINERS;
-            case "St. Louis Cardinals" -> CARDINALS;
-            case "Tampa Bay Rays" -> RAYS;
-            case "Texas Rangers" -> RANGERS;
-            case "Toronto Blue Jays" -> BLUE_JAYS;
-            case "Washington Nationals" -> NATIONALS;
-            default -> UNKNOWN;
-        };
+        return cache.stream().filter(teamEmoji -> teamEmoji.name().equals(input)).findFirst().orElse(unknownEmoji).emoji();
     }
 
     /**
@@ -111,43 +74,8 @@ public class TeamEmoji {
      * @return the emoji
      */
     public static Emoji fromClubName(String input) {
-        // only the production bot has access to the full list
-        if (!MLBBot.jda.getSelfUser().getId().equals("987144502374436895")) {
-            return UNKNOWN;
-        }
+        TeamEmoji unknownEmoji = cache.stream().filter(teamEmoji -> teamEmoji.name().equals("Unknown")).findFirst().orElseThrow();
 
-        return switch (input) {
-            case "Angels" -> ANGELS;
-            case "Astros" -> ASTROS;
-            case "Athletics" -> ATHLETICS;
-            case "Blue Jays" -> BLUE_JAYS;
-            case "Braves" -> BRAVES;
-            case "Brewers" -> BREWERS;
-            case "Cardinals" -> CARDINALS;
-            case "Cubs" -> CUBS;
-            case "D-backs" -> DBACKS;
-            case "Dodgers" -> DODGERS;
-            case "Giants" -> GIANTS;
-            case "Guardians" -> GUARDIANS;
-            case "Mariners" -> MARINERS;
-            case "Marlins" -> MARLINS;
-            case "Mets" -> METS;
-            case "Nationals" -> NATIONALS;
-            case "Orioles" -> ORIOLES;
-            case "Padres" -> PADRES;
-            case "Phillies" -> PHILLIES;
-            case "Pirates" -> PIRATES;
-            case "Rangers" -> RANGERS;
-            case "Rays" -> RAYS;
-            case "Red Sox" -> RED_SOX;
-            case "Reds" -> REDS;
-            case "Rockies" -> ROCKIES;
-            case "Royals" -> ROYALS;
-            case "Tigers" -> TIGERS;
-            case "Twins" -> TWINS;
-            case "White Sox" -> WHITE_SOX;
-            case "Yankees" -> YANKEES;
-            default -> UNKNOWN;
-        };
+        return cache.stream().filter(teamEmoji -> teamEmoji.clubName().equals(input)).findFirst().orElse(unknownEmoji).emoji();
     }
 }

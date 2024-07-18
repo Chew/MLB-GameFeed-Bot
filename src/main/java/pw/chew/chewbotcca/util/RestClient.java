@@ -52,16 +52,22 @@ public class RestClient {
     }
 
     /**
-     * Make a GET request
+     * Make an authenticated GET request
      * @param url the url to get
+     * @param authKey an auth key, include Bearer or Bot when necessary
      * @return a response
      */
-    public static String get(String url) {
-        Request request = new Request.Builder()
+    public static String get(String url, String authKey) {
+        var requestBuilder = new Request.Builder()
             .url(url)
             .get()
-            .addHeader("User-Agent", userAgent)
-            .build();
+            .addHeader("User-Agent", userAgent);
+
+        if (authKey != null) {
+            requestBuilder.addHeader("Authorization", authKey);
+        }
+
+        Request request = requestBuilder.build();
 
         if (!url.contains("?")) {
             url = url + "?";
@@ -76,6 +82,15 @@ public class RestClient {
             return requests.getIfPresent(url);
         }
         return performRequest(request);
+    }
+
+    /**
+     * Make a GET request
+     * @param url the url to get
+     * @return a response
+     */
+    public static String get(String url) {
+        return get(url, null);
     }
 
     /**

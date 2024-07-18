@@ -22,6 +22,7 @@ import pw.chew.mlb.commands.StartGameCommand;
 import pw.chew.mlb.commands.StopGameCommand;
 import pw.chew.mlb.listeners.InteractionHandler;
 import pw.chew.mlb.listeners.JDAListeners;
+import pw.chew.mlb.util.TeamEmoji;
 
 import javax.security.auth.login.LoginException;
 import java.io.FileInputStream;
@@ -90,5 +91,8 @@ public class MLBBot {
         for (int i = 0; i < teams.getJSONArray("teams").length(); i++) {
             TEAMS.add(teams.getJSONArray("teams").getJSONObject(i));
         }
+
+        // Load Emoji
+        TeamEmoji.setupEmoji(jda);
     }
 }

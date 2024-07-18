@@ -53,7 +53,7 @@ public class StandingsCommand extends SlashCommand {
                 **%s) %s %s**
                 **%s** W | **%s** L | **%s** pct | **%s** GB | **%s** Home | **%s** Away | **%s** L10
                 """.formatted(
-                    standing.rank(), TeamEmoji.fromName(standing.teamName()).getAsMention(), standing.teamName(),
+                    standing.rank(), TeamEmoji.fromName(standing.teamName()).getFormatted(), standing.teamName(),
                     standing.wins(), standing.losses(), standing.winPct(),
                     standing.gamesBack(), standing.homeRecord(), standing.awayRecord(), standing.lastTen()
                 )
