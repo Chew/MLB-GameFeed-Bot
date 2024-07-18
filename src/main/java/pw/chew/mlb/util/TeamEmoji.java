@@ -23,6 +23,7 @@ public record TeamEmoji(String name, String clubName, int id, Emoji emoji) {
 
         // Retrieve Emoji from Discoed
         JSONArray teams = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/teams?sportIds=1,11,12,13,14&season=2024&fields=teams,id,name,clubName,active")).getJSONArray("teams");
+        // TODO: Convert this to native JDA calls when possible
         JSONArray emojis = new JSONObject(RestClient.get("https://discord.com/api/v10/applications/%s/emojis".formatted(jda.getSelfUser().getId()), jda.getToken())).getJSONArray("items");
 
         // iterate through emojis
@@ -32,6 +33,12 @@ public record TeamEmoji(String name, String clubName, int id, Emoji emoji) {
             Emoji emoji = Emoji.fromData(emojiData);
 
             String emojiName = emoji.getName();
+
+            // skip _icon, TODO: Make it check for _[number]
+            if (emojiName.endsWith("_icon")) {
+                continue;
+            }
+
             // we need everything after the FINAL _
             String emojiTeamId = emojiName.substring(emojiName.lastIndexOf("_") + 1);
             int emojiTeamIdInt = Integer.parseInt(emojiTeamId);
