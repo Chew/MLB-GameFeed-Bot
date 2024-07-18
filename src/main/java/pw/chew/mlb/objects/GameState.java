@@ -5,6 +5,7 @@ import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.slf4j.LoggerFactory;
 import pw.chew.chewbotcca.util.RestClient;
 
 import java.time.OffsetDateTime;
@@ -34,6 +35,7 @@ public record GameState(JSONObject gameData) {
 
             return new GameState(json);
         } catch (JSONException e) {
+            LoggerFactory.getLogger(GameState.class).error("Failed to parse game data (error: {}): {}", e, res);
             return new GameState(new JSONObject());
         }
     }
