@@ -83,13 +83,10 @@ public class BetHelper {
             session.save(profile);
 
             // add initial betting credits
-            Bet bet = new Bet();
-            bet.setKind(BetKind.AUTOMATED);
-            bet.setBet(0);
-            bet.setPayout(100);
-            bet.setReason("Initial betting credits");
-            bet.setUserId(userId);
-            session.save(bet);
+            addAutomatedBet(userId, 100, "Initial betting credits", session);
+
+            // set initial credits in the profile
+            profile.setCredits(100);
 
             trans.commit();
         }
@@ -108,9 +105,12 @@ public class BetHelper {
      */
     public static Bet addAutomatedBet(long userId, int amount, String reason, @Nullable Session session) {
         // open session and transaction
+        boolean nullSession = false;
         if (session == null) {
             session = DatabaseHelper.getSessionFactory().openSession();
+            nullSession = true;
         }
+
         Transaction trans = session.beginTransaction();
 
         // add initial betting credits
@@ -122,8 +122,65 @@ public class BetHelper {
         bet.setUserId(userId);
 
         session.save(bet);
-        trans.commit();
+
+        // Commit transaction and close session if we opened to begin with
+        if (nullSession) {
+            trans.commit();
+            session.close();
+        }
 
         return bet;
+    }
+
+    /**
+     * Adds the daily credit to the user.
+     *
+     * @param userId
+     */
+    public static void addDailyCredit(long userId) {
+        var session = DatabaseHelper.getSessionFactory().openSession();
+
+        // Add daily credits
+        addAutomatedBet(userId, 10, "Daily Credits", session);
+
+        Profile profile = BetHelper.retrieveProfile(userId);
+        profile.setCredits(profile.getCredits() + 10);
+
+        Transaction trans = session.beginTransaction();
+        session.update(profile);
+        trans.commit();
+        session.close();
+    }
+
+    public static Bet getRecentDailyCredit(long userId) {
+        var session = DatabaseHelper.getSessionFactory().openSession();
+
+        // get Bets where user_id == userId
+        List<Bet> bets = session.createQuery("from Bet where userId = :userId and kind = :kind and reason = :reason order by createdAt desc", Bet.class)
+            .setParameter("userId", userId)
+            .setParameter("reason", "Daily Credits")
+            .setParameter("kind", BetKind.AUTOMATED)
+            .getResultList();
+
+        session.close();
+
+        if (bets.isEmpty()) {
+            return null;
+        }
+
+        return bets.get(0);
+    }
+
+    public static List<Bet> retrieveBets(long userId) {
+        var session = DatabaseHelper.getSessionFactory().openSession();
+
+        // get Bets where user_id == userId
+        List<Bet> bets = session.createQuery("from Bet where userId = :userId order by createdAt desc", Bet.class)
+            .setParameter("userId", userId)
+            .getResultList();
+
+        session.close();
+
+        return bets;
     }
 }

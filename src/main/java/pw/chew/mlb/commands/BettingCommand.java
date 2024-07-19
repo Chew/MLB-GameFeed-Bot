@@ -48,7 +48,7 @@ public class BettingCommand extends SlashCommand {
         protected void execute(SlashCommandEvent event) {
             // try to get profile
             Profile profile = BetHelper.retrieveProfile(event.getUser().getIdLong());
-            List<Bet> bets = retrieveBets(event.getUser().getIdLong());
+            List<Bet> bets = BetHelper.retrieveBets(event.getUser().getIdLong());
 
             // build embed
             event.replyEmbeds(buildProfileEmbed(event, profile, bets)).setEphemeral(true).queue();
@@ -89,7 +89,7 @@ public class BettingCommand extends SlashCommand {
 
         @Override
         protected void execute(SlashCommandEvent event) {
-            Bet recentDailyCredit = getRecentDailyCredit(event.getUser().getIdLong());
+            Bet recentDailyCredit = BetHelper.getRecentDailyCredit(event.getUser().getIdLong());
             long lastRecentDaily = 0;
 
             if (recentDailyCredit != null) {
@@ -108,47 +108,9 @@ public class BettingCommand extends SlashCommand {
             }
 
             // add daily credit
-            addDailyCredit(event.getUser().getIdLong());
+            BetHelper.addDailyCredit(event.getUser().getIdLong());
 
             event.reply("You have claimed your daily credits!").setEphemeral(true).queue();
-        }
-
-        public Bet getRecentDailyCredit(long userId) {
-            var session = DatabaseHelper.getSessionFactory().openSession();
-
-            // get Bets where user_id == userId
-            List<Bet> bets = session.createQuery("from Bet where userId = :userId and kind = :kind and reason = :reason order by createdAt desc", Bet.class)
-                .setParameter("userId", userId)
-                .setParameter("reason", "Daily Credits")
-                .setParameter("kind", BetKind.AUTOMATED)
-                .getResultList();
-
-            session.close();
-
-            if (bets.isEmpty()) {
-                return null;
-            }
-
-            return bets.get(0);
-        }
-
-        public void addDailyCredit(long userId) {
-            var session = DatabaseHelper.getSessionFactory().openSession();
-
-            Bet bet = new Bet();
-            bet.setKind(BetKind.AUTOMATED);
-            bet.setBet(0);
-            bet.setPayout(10);
-            bet.setReason("Daily Credits");
-            bet.setUserId(userId);
-
-            Profile profile = BetHelper.retrieveProfile(userId);
-            profile.setCredits(profile.getCredits() + 10);
-
-            Transaction trans = session.beginTransaction();
-            session.update(profile);
-            session.save(bet);
-            trans.commit();
         }
     }
 
@@ -276,21 +238,8 @@ public class BettingCommand extends SlashCommand {
 
         @Override
         protected void execute(SlashCommandEvent event) {
-            List<Bet> bets = retrieveBets(event.getUser().getIdLong());
+            List<Bet> bets = BetHelper.retrieveBets(event.getUser().getIdLong());
 
         }
-    }
-
-    public static List<Bet> retrieveBets(long userId) {
-        var session = DatabaseHelper.getSessionFactory().openSession();
-
-        // get Bets where user_id == userId
-        List<Bet> bets = session.createQuery("from Bet where userId = :userId order by createdAt desc", Bet.class)
-            .setParameter("userId", userId)
-            .getResultList();
-
-        session.close();
-
-        return bets;
     }
 }
