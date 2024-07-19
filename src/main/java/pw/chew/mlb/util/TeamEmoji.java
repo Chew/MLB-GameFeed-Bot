@@ -12,8 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Emoii come from a server, so it may not render if the bot is not in that server!
- * TODO: A better way to handle these, this is a mess.
+ * Team Emoji. Pulls from the bot's emoji on Discord and matches them to teams.
  */
 public record TeamEmoji(String name, String clubName, int id, Emoji emoji) {
     private static final List<TeamEmoji> cache = new ArrayList<>();
@@ -35,7 +34,7 @@ public record TeamEmoji(String name, String clubName, int id, Emoji emoji) {
             String emojiName = emoji.getName();
 
             // skip _icon, TODO: Make it check for _[number]
-            if (emojiName.endsWith("_icon")) {
+            if (!emojiName.startsWith("team_")) {
                 continue;
             }
 
@@ -84,5 +83,25 @@ public record TeamEmoji(String name, String clubName, int id, Emoji emoji) {
         TeamEmoji unknownEmoji = cache.stream().filter(teamEmoji -> teamEmoji.name().equals("Unknown")).findFirst().orElseThrow();
 
         return cache.stream().filter(teamEmoji -> teamEmoji.clubName().equals(input)).findFirst().orElse(unknownEmoji).emoji();
+    }
+
+    /**
+     * Gets an emoji based on the team ID. This is the "140" in "Texas Rangers"
+     * @param id the team ID
+     * @return the emoji or unknown if not found
+     */
+    public static Emoji fromTeamId(int id) {
+        TeamEmoji unknownEmoji = cache.stream().filter(teamEmoji -> teamEmoji.name().equals("Unknown")).findFirst().orElseThrow();
+
+        return cache.stream().filter(teamEmoji -> teamEmoji.id() == id).findFirst().orElse(unknownEmoji).emoji();
+    }
+
+    /**
+     * Gets an emoji based on the team ID. This is the "140" in "Texas Rangers"
+     * @param id the team ID
+     * @return the emoji or unknown if not found
+     */
+    public static Emoji fromTeamId(String id) {
+        return fromTeamId(Integer.parseInt(id));
     }
 }
