@@ -30,7 +30,7 @@ public class StopGameCommand extends SlashCommand {
         if (stoppedGame == null) {
             event.replyEmbeds(EmbedUtil.failure("There is no active game in this channel. Please start a game first.")).setEphemeral(true).queue();
         } else {
-            GameState state = GameState.fromPk(stoppedGame);
+            GameState state = GameState.fromPk(stoppedGame, "en");
 
             EmbedBuilder embed = new EmbedBuilder()
                 .setTitle("Stopped Game **%s @ %s**".formatted(state.away().clubName(), state.home().clubName()))

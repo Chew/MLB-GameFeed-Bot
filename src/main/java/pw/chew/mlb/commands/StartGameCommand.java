@@ -13,6 +13,7 @@ import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.utils.TimeFormat;
+import net.dv8tion.jda.internal.utils.Checks;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import pw.chew.chewbotcca.util.RestClient;
@@ -24,6 +25,7 @@ import pw.chew.mlb.util.EmbedUtil;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -39,33 +41,41 @@ public class StartGameCommand extends SlashCommand {
         );
 
         this.guildOnly = true;
-        this.options = Collections.singletonList(
+        this.options = Arrays.asList(
             new OptionData(OptionType.INTEGER, "game", "Which game to listen to", true)
                 .setDescriptionLocalization(DiscordLocale.SPANISH, "A qué juego escuchar")
-                .setAutoComplete(true)
+                .setAutoComplete(true),
+            new OptionData(OptionType.STRING, "lang", "The language to use for the game. By default, it will use the server's language.", false)
+                .setDescriptionLocalization(DiscordLocale.SPANISH, "El idioma a usar para el juego")
+                .addChoice("English", "en")
+                .addChoice("Spanish", "es")
         );
     }
 
     @Override
     protected void execute(SlashCommandEvent event) {
+        Checks.notNull(event.getGuild(), "server");
+
         String gamePk = event.getOption("game", "0", OptionMapping::getAsString);
+        String lang = event.optString("lang", event.getGuild().getLocale().getLocale().split("-")[0]);
+
         try {
-            MessageEmbed startGame = startGame(gamePk, event.getGuildChannel(), event.getUser());
+            MessageEmbed startGame = startGame(gamePk, lang, event.getGuildChannel(), event.getUser());
             event.replyEmbeds(startGame).queue();
         } catch (IllegalStateException e) {
             event.replyEmbeds(EmbedUtil.failure(e.getMessage())).setEphemeral(true).queue();
         }
     }
 
-    public static MessageEmbed startGame(String gamePk, GuildMessageChannel channel, User invoker) {
+    public static MessageEmbed startGame(String gamePk, String lang, GuildMessageChannel channel, User invoker) {
         String currentGame = GameFeedHandler.currentGame(channel);
         if (currentGame != null) {
             throw new IllegalStateException("This channel is already playing a game: " + currentGame + ". Please wait for it to finish, or stop it with `/stopgame`.");
         }
 
         // Start a new thread
-        ActiveGame activeGame = new ActiveGame(gamePk, channel.getId());
-        GameState currentState = GameState.fromPk(gamePk);
+        ActiveGame activeGame = new ActiveGame(gamePk, lang, channel.getId());
+        GameState currentState = GameState.fromPk(gamePk, "en");
 
         // Refuse to start if the game is already over
         if (currentState.isFinal()) {
@@ -84,6 +94,7 @@ public class StartGameCommand extends SlashCommand {
 
         List<String> description = new ArrayList<>();
         description.add("First Pitch: %s".formatted(TimeFormat.RELATIVE.format(currentState.officialDate())));
+        description.add("Language: %s".formatted(lang));
         description.add("\n*Invoked by %s*".formatted(invoker.getAsMention()));
 
         EmbedBuilder embed = new EmbedBuilder()

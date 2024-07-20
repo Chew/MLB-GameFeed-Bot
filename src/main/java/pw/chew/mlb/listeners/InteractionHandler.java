@@ -22,7 +22,7 @@ public class InteractionHandler extends ListenerAdapter {
                 case "refresh" -> event.deferEdit().queue(e -> e.editOriginalEmbeds(PlanGameCommand.generateGameBlurb(gamePk)).queue());
                 case "start" -> {
                     try {
-                        MessageEmbed startGame = StartGameCommand.startGame(gamePk, event.getGuildChannel(), event.getUser());
+                        MessageEmbed startGame = StartGameCommand.startGame(gamePk, "en", event.getGuildChannel(), event.getUser());
                         event.replyEmbeds(startGame).queue();
                     } catch (IllegalStateException e) {
                         event.replyEmbeds(EmbedUtil.failure(e.getMessage())).setEphemeral(true).queue();

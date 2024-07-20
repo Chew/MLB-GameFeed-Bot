@@ -64,9 +64,9 @@ public class GameFeedHandler {
         ChannelConfig.getConfig(game.channelId());
 
         if (!GAME_THREADS.containsKey(game.gamePk())) {
-            Thread thread = new Thread(() -> runGame(game.gamePk()), "Game-" + game.gamePk());
+            Thread thread = new Thread(() -> runGame(game.gamePk(), game.lang()), game.getThreadCode());
 
-            GAME_THREADS.put(game.gamePk(), thread);
+            GAME_THREADS.put(game.getThreadCode(), thread);
             thread.start();
             logger.info("Started game thread for gamePk: " + game.gamePk());
         }
@@ -101,9 +101,9 @@ public class GameFeedHandler {
 
         // If this is the last game running, stop the thread
         if (currentGames == 1) {
-            Thread thread = GAME_THREADS.get(game.gamePk());
+            Thread thread = GAME_THREADS.get(game.getThreadCode());
             thread.interrupt();
-            removeThread(game.gamePk());
+            removeThread(game.gamePk(), game.lang());
             logger.debug("Stopped game " + game.gamePk() + " thread");
         }
 
@@ -124,10 +124,11 @@ public class GameFeedHandler {
      *
      * @param gamePk The gamePk of the thread to remove.
      */
-    public static void removeThread(String gamePk) {
+    public static void removeThread(String gamePk, String lang) {
         LoggerFactory.getLogger(GameFeedHandler.class).debug("Removing thread for gamePk " + gamePk);
 
-        GAME_THREADS.remove(gamePk);
+        String threadCode = "Game-%s-%s".formatted(gamePk, lang);
+        GAME_THREADS.remove(threadCode);
 
         if (GAME_THREADS.isEmpty() && shutdownOnFinish) {
             AdminCommand.shutdown();
@@ -189,14 +190,14 @@ public class GameFeedHandler {
      *
      * @param gamePk The gamePk of the game to run.
      */
-    private static void runGame(String gamePk) {
-        logger.debug("Starting game with gamePk: " + gamePk);
+    private static void runGame(String gamePk, String lang) {
+        logger.debug("Starting game with gamePk {} and lang {} ", gamePk, lang);
 
         if (gamePk.isEmpty()) {
             return;
         }
 
-        GameState currentState = GameState.fromPk(gamePk);
+        GameState currentState = GameState.fromPk(gamePk, lang);
         List<JSONObject> postedAdvisories = currentState.gameAdvisories();
 
 //        boolean canEdit = channel.getGuild().getSelfMember().hasPermission(channel, Permission.MANAGE_CHANNEL);
@@ -204,7 +205,7 @@ public class GameFeedHandler {
         // Start the looping thread until the game is stopped
         int fails = 0;
         while (!currentState.gameState().equals("Final")) {
-            GameState recentState = GameState.fromPk(gamePk);
+            GameState recentState = GameState.fromPk(gamePk, lang);
 
             if (recentState.failed()) {
                 int retryIn = fails + 3;
@@ -222,7 +223,7 @@ public class GameFeedHandler {
                             """)
                         .setColor(Color.RED);
 
-                    sendMessages(notifier.build(), gamePk);
+                    sendMessages(notifier.build(), gamePk, lang);
                 }
                 try {
                     //noinspection BusyWait
@@ -230,7 +231,7 @@ public class GameFeedHandler {
                 } catch (InterruptedException e) {
                     e.printStackTrace();
                     // Shutdown the thread
-                    removeThread(gamePk);
+                    removeThread(gamePk, lang);
                     return;
                 }
                 fails++;
@@ -245,17 +246,17 @@ public class GameFeedHandler {
                         """)
                     .setColor(Color.GREEN);
 
-                sendMessages(notifier.build(), gamePk);
+                sendMessages(notifier.build(), gamePk, lang);
             }
             fails = 0;
 
             if (recentState.isCancelled()) {
-                endGame(gamePk, recentState, "\nUnfortunately, this game was cancelled.");
+                endGame(gamePk, lang, recentState, "\nUnfortunately, this game was cancelled.");
                 return;
             }
 
             if (recentState.isSuspended()) {
-                endGame(gamePk, recentState, "\nUnfortunately, this game has been suspended. It will resume at a later time.");
+                endGame(gamePk, lang, recentState, "\nUnfortunately, this game has been suspended. It will resume at a later time.");
                 return;
             }
 
@@ -319,7 +320,7 @@ public class GameFeedHandler {
                 }
 
                 // Send result
-                sendPlay(embed.build(), gamePk, recentState, scoringPlay);
+                sendPlay(embed.build(), gamePk, lang, recentState, scoringPlay);
             }
 
             // Check for new advisories
@@ -358,7 +359,7 @@ public class GameFeedHandler {
                     queuedAdvisories.add(detailEmbed.build());
                 }
 
-                sendAdvisory(queuedAdvisories, gamePk);
+                sendAdvisory(queuedAdvisories, gamePk, lang);
             }
 
             // Check if the inning state changed
@@ -369,7 +370,7 @@ public class GameFeedHandler {
                         .setTitle("Inning State Updated")
                         .setDescription(recentState.inningState() + " of the " + recentState.inningOrdinal());
 
-                    sendMessages(inningEmbed.build(), gamePk);
+                    sendMessages(inningEmbed.build(), gamePk, lang);
                 }
             }
 
@@ -384,7 +385,7 @@ public class GameFeedHandler {
             } catch (InterruptedException e) {
                 e.printStackTrace();
                 // Shutdown the thread
-                removeThread(gamePk);
+                removeThread(gamePk, lang);
                 return;
             }
         }
@@ -456,7 +457,7 @@ public class GameFeedHandler {
         tableBuilder.codeblock(true);
 
         // Game is over!
-        endGame(gamePk, currentState, tableBuilder.build());
+        endGame(gamePk, lang, currentState, tableBuilder.build());
     }
 
     /**
@@ -465,8 +466,8 @@ public class GameFeedHandler {
      * @param embeds The embeds to send.
      * @param gamePk The gamePk of the game.
      */
-    public static void sendAdvisory(List<MessageEmbed> embeds, String gamePk) {
-        for (ActiveGame game : getGames(gamePk)) {
+    public static void sendAdvisory(List<MessageEmbed> embeds, String gamePk, String lang) {
+        for (ActiveGame game : getGames(gamePk, lang)) {
             ChannelConfig config = ChannelConfig.getConfig(game.channelId());
             if (!config.gameAdvisories()) continue;
 
@@ -477,8 +478,8 @@ public class GameFeedHandler {
         }
     }
 
-    public static void sendMessages(MessageEmbed message, String gamePk) {
-        for (ActiveGame game : getGames(gamePk)) {
+    public static void sendMessages(MessageEmbed message, String gamePk, String lang) {
+        for (ActiveGame game : getGames(gamePk, lang)) {
             GuildMessageChannel channel = canSafelySend(game);
             if (channel == null) continue;
 
@@ -494,8 +495,8 @@ public class GameFeedHandler {
      * @param gameState The game state at the time of this play.
      * @param isScoringPlay Whether the play is a scoring play.
      */
-    public static void sendPlay(MessageEmbed message, String gamePk, GameState gameState, boolean isScoringPlay) {
-        for (ActiveGame game : getGames(gamePk)) {
+    public static void sendPlay(MessageEmbed message, String gamePk, String lang, GameState gameState, boolean isScoringPlay) {
+        for (ActiveGame game : getGames(gamePk, lang)) {
             ChannelConfig config = ChannelConfig.getConfig(game.channelId());
 
             // If configured to only show scoring plays, ignore non-scoring plays
@@ -548,8 +549,8 @@ public class GameFeedHandler {
         }
     }
 
-    public static void endGame(String gamePk, GameState currentState, String scorecard) {
-        for (ActiveGame game : getGames(gamePk)) {
+    public static void endGame(String gamePk, String lang, GameState currentState, String scorecard) {
+        for (ActiveGame game : getGames(gamePk, lang)) {
             GuildChannel gChan = jda.getGuildChannelById(game.channelId());
             if (gChan == null) continue;
 
@@ -577,12 +578,12 @@ public class GameFeedHandler {
         }
 
         // Remove the games from the active games list
-        for (ActiveGame game : getGames(gamePk)) {
+        for (ActiveGame game : getGames(gamePk, lang)) {
             stopGame(game);
         }
 
         // Remove the game thread
-        removeThread(gamePk);
+        removeThread(gamePk, lang);
     }
 
     /**
@@ -625,11 +626,12 @@ public class GameFeedHandler {
      * @param gamePk The gamePk to get active games for
      * @return A list of active games
      */
-    public static List<ActiveGame> getGames(String gamePk) {
+    public static List<ActiveGame> getGames(String gamePk, String lang) {
         List<ActiveGame> games = new ArrayList<>();
 
         for (ActiveGame game : gamesMap.values()) {
             if (!game.gamePk().equals(gamePk)) continue;
+            if (!game.lang().equals(lang)) continue;
 
             games.add(game);
         }

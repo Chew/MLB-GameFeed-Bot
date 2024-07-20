@@ -18,25 +18,27 @@ import java.util.List;
  *
  * @param gameData The game data from the MLB API
  */
-public record GameState(JSONObject gameData) {
+public record GameState(JSONObject gameData, String locale) {
     /**
      * Retrieves the latest game data for the provided game PK (ID)
      *
      * @param gamePk The gamePk of the game to get the state of
+     * @param locale The locale to use. en for English, es for Spanish.
      * @return The game state
      */
     @NotNull
-    public static GameState fromPk(String gamePk) {
-        String res = RestClient.get("https://statsapi.mlb.com/api/v1.1/game/:id/feed/live?language=en&fields=gameData,game,pk,datetime,dateTime,status,detailedState,abstractGameState,liveData,plays,allPlays,result,description,awayScore,homeScore,event,about,isComplete,count,balls,strikes,outs,playEvents,details,isInPlay,isScoringPlay,description,event,eventType,hitData,launchSpeed,launchAngle,totalDistance,trajectory,hardness,isPitch,atBatIndex,playId,currentPlay,count,outs,matchup,batter,fullName,pitcher,fullName,postOnFirst,fullName,postOnSecond,postOnThird,fullName,linescore,currentInning,currentInningOrdinal,inningState,linescore,teams,home,name,clubName,abbreviation,runs,away,runs,innings,num,home,runs,away,runs,teams,home,runs,hits,errors,leftOnBase,away,runs,hits,errors,leftOnBase,decisions,winner,fullName,id,loser,save,boxscore,teams,away,home,players,stats,pitching,note"
+    public static GameState fromPk(String gamePk, String locale) {
+        String res = RestClient.get("https://statsapi.mlb.com/api/v1.1/game/:id/feed/live?language=:lang&fields=gameData,game,pk,datetime,dateTime,status,detailedState,abstractGameState,liveData,plays,allPlays,result,description,awayScore,homeScore,event,about,isComplete,count,balls,strikes,outs,playEvents,details,isInPlay,isScoringPlay,description,event,eventType,hitData,launchSpeed,launchAngle,totalDistance,trajectory,hardness,isPitch,atBatIndex,playId,currentPlay,count,outs,matchup,batter,fullName,pitcher,fullName,postOnFirst,fullName,postOnSecond,postOnThird,fullName,linescore,currentInning,currentInningOrdinal,inningState,linescore,teams,home,name,clubName,abbreviation,runs,away,runs,innings,num,home,runs,away,runs,teams,home,runs,hits,errors,leftOnBase,away,runs,hits,errors,leftOnBase,decisions,winner,fullName,id,loser,save,boxscore,teams,away,home,players,stats,pitching,note"
+            .replace(":lang", locale)
             .replace(":id", gamePk));
 
         try {
             JSONObject json = new JSONObject(res);
 
-            return new GameState(json);
+            return new GameState(json, locale);
         } catch (JSONException e) {
             LoggerFactory.getLogger(GameState.class).error("Failed to parse game data (error: {}): {}", e, res);
-            return new GameState(new JSONObject());
+            return new GameState(new JSONObject(), locale);
         }
     }
 
@@ -306,7 +308,7 @@ public record GameState(JSONObject gameData) {
         } else {
             JSONObject hitData = event.getJSONObject("hitData");
 
-            return String.format("Ball left the bat at a speed of %s mph at a %s° angle, and travelled %s feet.",
+            return String.format("Ball left the bat at a speed of %s mph at a %s° angle, and travelled %s feet.", // TODO: This needs to be spanish
                 hitData.getFloat("launchSpeed"),
                 hitData.getFloat("launchAngle"),
                 hitData.getFloat("totalDistance"));

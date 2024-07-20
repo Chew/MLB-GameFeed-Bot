@@ -40,7 +40,7 @@ public class ScoreCommand extends SlashCommand {
     }
 
     public String buildScore(String gamePk, String channelId) {
-        GameState state = GameState.fromPk(gamePk);
+        GameState state = GameState.fromPk(gamePk, "en");
 
         String channelMention = "";
         if (channelId != null) {
