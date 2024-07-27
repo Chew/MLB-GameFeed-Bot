@@ -175,9 +175,9 @@ public class PlanGameCommand extends SlashCommand {
     public static List<Button> buildButtons(String gamePk, GameBlurb blurb) {
         return List.of(
             Button.success("plangame:start:"+gamePk, "Start"),
-            Button.secondary("plangame:refresh:"+gamePk, "Refresh"),
-            Button.primary("plangame:lineup:"+gamePk+":away", blurb.away().name() + " Lineup").withEmoji(TeamEmoji.fromClubName(blurb.away().name())),
-            Button.primary("plangame:lineup:"+gamePk+":home", blurb.home().name() + " Lineup").withEmoji(TeamEmoji.fromClubName(blurb.home().name()))
+            Button.secondary("plangame:refresh:"+gamePk, "Refresh Embed"),
+            Button.primary("plangame:lineup:"+gamePk+":away", blurb.away().name() + " Lineup").withEmoji(TeamEmoji.fromTeamId(blurb.away().id())),
+            Button.primary("plangame:lineup:"+gamePk+":home", blurb.home().name() + " Lineup").withEmoji(TeamEmoji.fromTeamId(blurb.home().id()))
         );
     }
 

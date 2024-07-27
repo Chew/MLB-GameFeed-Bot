@@ -6,6 +6,7 @@ import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import org.jetbrains.annotations.NotNull;
 import pw.chew.mlb.commands.PlanGameCommand;
 import pw.chew.mlb.commands.StartGameCommand;
+import pw.chew.mlb.objects.GameBlurb;
 import pw.chew.mlb.util.EmbedUtil;
 import pw.chew.mlb.util.MLBAPIUtil;
 
@@ -19,7 +20,12 @@ public class InteractionHandler extends ListenerAdapter {
             String action = event.getComponentId().split(":")[1];
             String gamePk = event.getComponentId().split(":")[2];
             switch (action) {
-                case "refresh" -> event.deferEdit().queue(e -> e.editOriginalEmbeds(PlanGameCommand.generateGameBlurb(gamePk)).queue());
+                case "refresh" -> event.deferEdit().queue(e -> {
+                    GameBlurb blurb = new GameBlurb(gamePk);
+                    e.editOriginalEmbeds(blurb.blurb())
+                        .setActionRow(PlanGameCommand.buildButtons(gamePk, blurb))
+                        .queue();
+                });
                 case "start" -> {
                     try {
                         MessageEmbed startGame = StartGameCommand.startGame(gamePk, event.getGuildChannel(), event.getUser());

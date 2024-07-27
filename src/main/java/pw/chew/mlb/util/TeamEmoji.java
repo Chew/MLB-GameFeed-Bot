@@ -67,6 +67,7 @@ public record TeamEmoji(String name, String clubName, int id, Emoji emoji) {
      * Gets an emoji based on the team name. This is the FULL name, e.g Texas Rangers
      *
      * @return the emoji
+     * @deprecated use {@link #fromTeamId(int)} or {@link #fromTeamId(String)} instead
      */
     public static Emoji fromName(String input) {
         TeamEmoji unknownEmoji = cache.stream().filter(teamEmoji -> teamEmoji.name().equals("Unknown")).findFirst().orElseThrow();
@@ -76,8 +77,12 @@ public record TeamEmoji(String name, String clubName, int id, Emoji emoji) {
 
     /**
      * Gets an emoji based on the club name. This is the "Rangers" in "Texas Rangers"
+     * <br>Due to some club names being the same in majors and minors (Like "Chicago Cubs" and "Iowa Cubs"),
+     * this method is not recommended
+     *
      * @param input the club name
      * @return the emoji
+     * @deprecated use {@link #fromTeamId(int)} or {@link #fromTeamId(String)} instead
      */
     public static Emoji fromClubName(String input) {
         TeamEmoji unknownEmoji = cache.stream().filter(teamEmoji -> teamEmoji.name().equals("Unknown")).findFirst().orElseThrow();
