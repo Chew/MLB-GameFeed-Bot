@@ -8,21 +8,17 @@ import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
-import net.dv8tion.jda.api.interactions.commands.Command;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.utils.TimeFormat;
-import org.json.JSONArray;
-import org.json.JSONObject;
-import pw.chew.chewbotcca.util.RestClient;
 import pw.chew.mlb.listeners.GameFeedHandler;
 import pw.chew.mlb.objects.ActiveGame;
 import pw.chew.mlb.objects.GameState;
+import pw.chew.mlb.util.AutocompleteUtil;
 import pw.chew.mlb.util.EmbedUtil;
 
 import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -97,30 +93,6 @@ public class StartGameCommand extends SlashCommand {
 
     @Override
     public void onAutoComplete(CommandAutoCompleteInteractionEvent event) {
-        // Build the current date String as MM/DD/YYYY
-        String today = OffsetDateTime.now().format(DateTimeFormatter.ofPattern("MM/dd/yyyy"));
-
-        // Retrieve the current games
-        JSONObject gameResponse = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/schedule?language=en&sportId=1&date=" + today + "&hydrate=game,flags,team"));
-
-        // Build games
-        List<Command.Choice> choices = new ArrayList<>();
-
-        JSONArray games = gameResponse.getJSONArray("dates").getJSONObject(0).getJSONArray("games");
-
-        for (int i = 0; i < games.length(); i++) {
-            JSONObject game = games.getJSONObject(i);
-
-            String status = game.getJSONObject("status").getString("abstractGameState");
-
-            if (status.equals("Live")) {
-                String home = game.getJSONObject("teams").getJSONObject("home").getJSONObject("team").getString("clubName");
-                String awa = game.getJSONObject("teams").getJSONObject("away").getJSONObject("team").getString("clubName");
-
-                choices.add(new Command.Choice(String.format("%s @ %s", awa, home), game.getInt("gamePk")));
-            }
-        }
-
-        event.replyChoices(choices).queue();
+        event.replyChoices(AutocompleteUtil.getTodayGames(false)).queue();
     }
 }

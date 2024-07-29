@@ -7,6 +7,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import pw.chew.chewbotcca.util.RestClient;
 
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Collections;
@@ -16,6 +18,12 @@ import java.util.TimeZone;
 import static pw.chew.mlb.MLBBot.SEASON;
 
 public class AutocompleteUtil {
+    /**
+     * The time zone for New York.
+     * We use New York because there is rarely games played east of it, and MLB is headquartered in New York.
+     */
+    private final static TimeZone NEW_YORK = TimeZone.getTimeZone("America/New_York");
+
     // can't be instantiated
     private AutocompleteUtil() {}
 
@@ -37,11 +45,11 @@ public class AutocompleteUtil {
             case "sport" -> {
                 return AutocompleteUtil.getSports();
             }
-            case "date" -> {
+            case "date", "game" -> {
                 int teamId = event.getOption("team", -1, OptionMapping::getAsInt);
                 String sport = event.getOption("sport", "1", OptionMapping::getAsString);
 
-                return AutocompleteUtil.getGames(teamId, sport);
+                return AutocompleteUtil.getTeamGames(teamId, sport);
             }
         }
 
@@ -78,7 +86,7 @@ public class AutocompleteUtil {
      * @param sportId the sport ID of the team
      * @return a list of games, or a "Please select a team first!" choice if the team ID is -1
      */
-    public static List<Command.Choice> getGames(int teamId, String sportId) {
+    public static List<Command.Choice> getTeamGames(int teamId, String sportId) {
         if (teamId == -1) {
             return List.of(new Command.Choice("Please select a team first!", -1));
         }
@@ -92,11 +100,11 @@ public class AutocompleteUtil {
             String date = games.getJSONObject(i).getString("date");
 
             // get today at eastern time
-            Calendar currentDate = Calendar.getInstance(TimeZone.getTimeZone("America/New_York"));
+            Calendar yesterday = Calendar.getInstance(NEW_YORK);
             // yesterday
-            currentDate.add(Calendar.DATE, -1);
+            yesterday.add(Calendar.DATE, -1);
 
-            Calendar gameDate = Calendar.getInstance(TimeZone.getTimeZone("America/New_York"));
+            Calendar gameDate = Calendar.getInstance(NEW_YORK);
             gameDate.set(
                 Integer.parseInt(date.split("-")[0]),
                 Integer.parseInt(date.split("-")[1]) - 1,
@@ -104,7 +112,7 @@ public class AutocompleteUtil {
             );
 
             // skip if before today
-            if (gameDate.before(currentDate)) {
+            if (gameDate.before(yesterday) || gameDate.equals(yesterday)) {
                 continue;
             }
 
@@ -126,6 +134,47 @@ public class AutocompleteUtil {
 
         // Ensure no more than 25 choices, and no duplicates
         choices = choices.stream().distinct().limit(25).toList();
+
+        return choices;
+    }
+
+    /**
+     * Gets a list of games for today.
+     *
+     * @param showFinal whether to show final games
+     * @return a list of games
+     */
+    public static List<Command.Choice> getTodayGames(boolean showFinal) {
+        // Build the current date String as MM/DD/YYYY
+        String today = OffsetDateTime.now(NEW_YORK.toZoneId()).format(DateTimeFormatter.ofPattern("MM/dd/yyyy"));
+
+        // Retrieve the current games
+        JSONObject gameResponse = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/schedule?language=en&sportId=1&date=" + today + "&hydrate=game,flags,team"));
+
+        // Build games
+        List<Command.Choice> choices = new ArrayList<>();
+
+        JSONArray games = gameResponse.getJSONArray("dates").getJSONObject(0).getJSONArray("games");
+
+        for (int i = 0; i < games.length(); i++) {
+            JSONObject game = games.getJSONObject(i);
+
+            String status = game.getJSONObject("status").getString("abstractGameState");
+
+            if (status.equals("Live") || showFinal) {
+                String home = game.getJSONObject("teams").getJSONObject("home").getJSONObject("team").getString("clubName");
+                String awa = game.getJSONObject("teams").getJSONObject("away").getJSONObject("team").getString("clubName");
+
+                boolean isDoubleHeader = game.getString("doubleHeader").equals("Y");
+
+                String name = String.format("%s @ %s", awa, home);
+                if (isDoubleHeader) {
+                    name += " (Game %d)".formatted(game.getInt("gameNumber"));
+                }
+
+                choices.add(new Command.Choice(name, game.getInt("gamePk")));
+            }
+        }
 
         return choices;
     }
