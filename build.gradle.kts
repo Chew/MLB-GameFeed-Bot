@@ -1,7 +1,7 @@
 plugins {
     id("java")
     application
-    kotlin("jvm") version "1.9.10"
+    kotlin("jvm") version "1.9.24"
 }
 
 group = "pw.chew"
@@ -9,7 +9,7 @@ version = "1.0-SNAPSHOT"
 
 repositories {
     maven {
-        url = uri("https://m2.chew.pro/snapshots/")
+        url = uri("https://m2.chew.pro/releases/")
         content {
             includeGroup("pw.chew")
         }
@@ -19,17 +19,17 @@ repositories {
 }
 
 dependencies {
-    implementation("net.dv8tion", "JDA", "5.0.0-beta.24")
-    implementation("pw.chew", "jda-chewtils", "2.0-SNAPSHOT")
-    implementation("org.json", "json", "20230227")
-    implementation("ch.qos.logback", "logback-classic", "1.4.5")
-    implementation("mysql", "mysql-connector-java", "8.0.28")
-    implementation("org.mapdb", "mapdb", "3.0.9")
-    implementation("org.hibernate", "hibernate-core", "5.6.5.Final")
-    implementation("com.github.ben-manes.caffeine", "caffeine", "3.1.0")
+    implementation("net.dv8tion", "JDA", "5.0.1")
+    implementation("pw.chew", "jda-chewtils", "2.0")
+    implementation("org.json", "json", "20240303")
+    implementation("ch.qos.logback", "logback-classic", "1.5.6")
+    implementation("mysql", "mysql-connector-java", "8.0.33")
+    implementation("org.mapdb", "mapdb", "3.1.0")
+    implementation("org.hibernate", "hibernate-core", "5.6.15.Final")
+    implementation("com.github.ben-manes.caffeine", "caffeine", "3.1.8")
 
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.8.1")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.8.1")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.3")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.3")
 }
 
 tasks.getByName<Test>("test") {
