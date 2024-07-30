@@ -5,7 +5,9 @@ import net.dv8tion.jda.api.utils.FileUpload;
 
 import javax.imageio.ImageIO;
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.MediaTracker;
 import java.awt.Toolkit;
@@ -25,7 +27,7 @@ public class ImageUtil {
      * @param homeId the home team ID
      * @return a FileUpload of the banner
      */
-    public static MatchUpBanner matchUpBanner(int awayId, int homeId) {
+    public static GeneratedImage matchUpBanner(int awayId, int homeId) {
         Graphics g;
 
         BufferedImage image = new BufferedImage(1600, 640, BufferedImage.TYPE_INT_RGB);
@@ -89,14 +91,80 @@ public class ImageUtil {
             ImageIO.write(image, "png", os);
             InputStream is = new ByteArrayInputStream(os.toByteArray());
 
-            return new MatchUpBanner(is);
+            return new GeneratedImage(is);
         } catch (IOException e) {
             e.printStackTrace();
             return null;
         }
     }
 
-    public record MatchUpBanner(InputStream stream) {
+    public static GeneratedImage createTable(String[][] data) {
+        // set widths per column
+        int[] cellWidths = new int[]{100, 30, 30, 30, 30, 30, 30, 50, 50};
+        int currentWidth = 0;
+        int totalWidth = 100 + 30 * 6 + 50 * 2;
+
+        int cellHeight = 30;
+        int padding = 5;
+
+        int imageWidth = (data[0].length * (totalWidth / 9) + padding * (data[0].length + 1)) + 10;
+        int imageHeight = data.length * cellHeight + padding * (data.length + 1);
+
+        BufferedImage image = new BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2d = image.createGraphics();
+
+        // set background color to #141A1F
+        g2d.setColor(new Color(0x141A1F));
+        g2d.fillRect(0, 0, imageWidth, imageHeight);
+
+        Font font = new Font("Proxima Nova", Font.PLAIN, 14);
+        g2d.setFont(font);
+
+        for (int row = 0; row < data.length; row++) {
+            for (int col = 0; col < data[row].length; col++) {
+                int x = col + currentWidth + (col + 1) * padding;
+                int y = row * cellHeight + (row + 1) * padding;
+
+                g2d.setColor(Color.WHITE);
+
+                // try to center align the string
+                // left aligned
+                if (col == 0) {
+                    g2d.drawString(data[row][col], x + padding, y + cellHeight - padding - 2);
+                } else {
+                    g2d.drawString(data[row][col], x + (cellWidths[col] - g2d.getFontMetrics().stringWidth(data[row][col])) / 2, y + cellHeight - padding - 2);
+                }
+
+                // set the width of the cell
+                currentWidth += cellWidths[col];
+            }
+            currentWidth = 0;
+        }
+
+        // add a border-line between the 1st and 2nd row, with color rgb(38, 51, 64)
+        g2d.setColor(new Color(0x263340));
+        g2d.drawLine(0, cellHeight + padding, imageWidth, cellHeight + padding);
+
+        g2d.dispose();
+
+        // Convert BufferedImage to InputStream
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+        try {
+            ImageIO.write(image, "png", os);
+            InputStream is = new ByteArrayInputStream(os.toByteArray());
+
+            return new GeneratedImage(is);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return new GeneratedImage(null);
+        }
+    }
+
+    public record GeneratedImage(InputStream stream) {
+        public boolean failed() {
+            return stream == null;
+        }
+
         public FileUpload asFileUpload() {
             return FileUpload.fromData(stream, "image.png");
         }
