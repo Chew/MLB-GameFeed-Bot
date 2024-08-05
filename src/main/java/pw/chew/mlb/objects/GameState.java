@@ -76,8 +76,24 @@ public record GameState(JSONObject gameData) {
         return gameData().getJSONObject("gameData").getJSONObject("status").getString("detailedState").equals("Cancelled");
     }
 
+    /**
+     * Check if a game is suspended.
+     * A game suspension usually means we don't know when or if the game will be resumed.
+     *
+     * @return true if the game is suspended, false otherwise
+     */
     public boolean isSuspended() {
         return gameData().getJSONObject("gameData").getJSONObject("status").getString("detailedState").contains("Suspended");
+    }
+
+    /**
+     * Check if a game is postponed.
+     * Typically, postponements have a rescheduled date. But, we don't care about that here.
+     *
+     * @return true if the game is postponed, false otherwise
+     */
+    public boolean isPostponed() {
+        return gameData().getJSONObject("gameData").getJSONObject("status").getString("detailedState").contains("Postponed");
     }
 
     /**

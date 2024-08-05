@@ -254,7 +254,7 @@ public class GameFeedHandler {
                 return;
             }
 
-            if (recentState.isSuspended()) {
+            if (recentState.isSuspended() || recentState.isPostponed()) {
                 endGame(gamePk, recentState, "\nUnfortunately, this game has been suspended. It will resume at a later time.");
                 return;
             }
