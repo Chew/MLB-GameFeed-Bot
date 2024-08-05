@@ -4,6 +4,7 @@ import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import org.jetbrains.annotations.NotNull;
+import pw.chew.mlb.commands.GameInfoCommand;
 import pw.chew.mlb.commands.PlanGameCommand;
 import pw.chew.mlb.commands.StartGameCommand;
 import pw.chew.mlb.objects.GameBlurb;
@@ -66,6 +67,16 @@ public class InteractionHandler extends ListenerAdapter {
                     }
 
                     event.reply(String.join("\n", friendly)).setEphemeral(true).queue();
+                }
+            }
+        }
+
+        if (event.getComponentId().startsWith("gameinfo:")) {
+            String action = event.getComponentId().split(":")[1];
+            String gamePk = event.getComponentId().split(":")[2];
+            switch (action) {
+                case "boxscore" -> {
+                    GameInfoCommand.buildBoxScore(gamePk, event);
                 }
             }
         }
