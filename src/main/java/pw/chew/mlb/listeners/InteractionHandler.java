@@ -2,12 +2,14 @@ package pw.chew.mlb.listeners;
 
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
 import org.jetbrains.annotations.NotNull;
 import pw.chew.mlb.commands.PlanGameCommand;
 import pw.chew.mlb.commands.StartGameCommand;
 import pw.chew.mlb.objects.GameBlurb;
 import pw.chew.mlb.util.EmbedUtil;
+import pw.chew.mlb.commands.TeamCommand;
 import pw.chew.mlb.util.MLBAPIUtil;
 
 import java.util.ArrayList;
@@ -16,6 +18,11 @@ import java.util.List;
 public class InteractionHandler extends ListenerAdapter {
     @Override
     public void onButtonInteraction(@NotNull ButtonInteractionEvent event) {
+        if (event.getComponentId().startsWith("team:")) {
+            TeamCommand.handleButton(event);
+            return;
+        }
+
         if (event.getComponentId().startsWith("plangame:")) {
             String action = event.getComponentId().split(":")[1];
             String gamePk = event.getComponentId().split(":")[2];
@@ -68,6 +75,13 @@ public class InteractionHandler extends ListenerAdapter {
                     event.reply(String.join("\n", friendly)).setEphemeral(true).queue();
                 }
             }
+        }
+    }
+
+    @Override
+    public void onStringSelectInteraction(@NotNull StringSelectInteractionEvent event) {
+        if (event.getComponentId().startsWith("team:")) {
+            TeamCommand.handleSelect(event);
         }
     }
 }

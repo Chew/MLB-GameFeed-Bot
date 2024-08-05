@@ -20,6 +20,7 @@ import pw.chew.mlb.commands.SetInfoCommand;
 import pw.chew.mlb.commands.StandingsCommand;
 import pw.chew.mlb.commands.StartGameCommand;
 import pw.chew.mlb.commands.StopGameCommand;
+import pw.chew.mlb.commands.TeamCommand;
 import pw.chew.mlb.listeners.InteractionHandler;
 import pw.chew.mlb.listeners.JDAListeners;
 import pw.chew.mlb.util.TeamEmoji;
@@ -65,7 +66,7 @@ public class MLBBot {
             new StartGameCommand(), new StopGameCommand(), new ScoreCommand(), new SetInfoCommand(), new ConfigCommand(),
             new PlanGameCommand()
             , // Util Commands
-            new StandingsCommand()
+            new StandingsCommand(), new TeamCommand()
         );
 
         //client.forceGuildOnly("148195924567392257");
