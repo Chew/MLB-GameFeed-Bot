@@ -2,6 +2,7 @@ package pw.chew.mlb.objects;
 
 import net.dv8tion.jda.api.entities.Icon;
 import net.dv8tion.jda.api.utils.FileUpload;
+import pw.chew.mlb.commands.GameInfoCommand;
 
 import javax.imageio.ImageIO;
 import java.awt.Color;
@@ -98,16 +99,16 @@ public class ImageUtil {
         }
     }
 
-    public static GeneratedImage createTable(String[][] data) {
+    public static GeneratedImage createTable(String[][] data, GameInfoCommand.BoxScoreDataSets set) {
         // set widths per column
-        int[] cellWidths = new int[]{100, 30, 30, 30, 30, 30, 30, 50, 50};
+        int[] cellWidths = set.columnWidths();
         int currentWidth = 0;
-        int totalWidth = 100 + 30 * 6 + 50 * 2;
+        int totalWidth = set.totalWidth();
 
         int cellHeight = 30;
         int padding = 5;
 
-        int imageWidth = (data[0].length * (totalWidth / 9) + padding * (data[0].length + 1)) + 10;
+        int imageWidth = (data[0].length * (totalWidth / set.length()) + padding * (data[0].length + 1)) + 10;
         int imageHeight = data.length * cellHeight + padding * (data.length + 1);
 
         BufferedImage image = new BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_RGB);

@@ -10,16 +10,19 @@ import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import org.json.JSONObject;
+import pw.chew.chewbotcca.util.MiscUtil;
+import pw.chew.chewbotcca.util.RestClient;
 import pw.chew.mlb.objects.GameState;
 import pw.chew.mlb.objects.ImageUtil;
 import pw.chew.mlb.util.AutocompleteUtil;
 import pw.chew.mlb.util.EmbedUtil;
 import pw.chew.mlb.util.TeamEmoji;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * A command to get information about a specific game
@@ -86,38 +89,116 @@ public class GameInfoCommand extends SlashCommand {
             Button.primary("plangame:lineup:" + info.gamePk() + ":home", info.home().clubName() + " Lineup").withEmoji(TeamEmoji.fromTeamId(info.home().id()))
         ), ActionRow.of(
             // box score buttons
-            Button.primary("gameinfo:boxscore:" + info.gamePk(), "Box Score TEX")
+            Button.primary("gameinfo:boxscore:" + info.gamePk() + ":away:batters", "Box Score " + info.away().clubName()),
+            Button.primary("gameinfo:boxscore:" + info.gamePk() + ":home:batters", "Box Score " + info.home().clubName())
         ));
     }
 
-    public static void buildBoxScore(String gamePk, ButtonInteractionEvent event) {
+    public static void buildBoxScore(String gamePk, String homeOrAway, String type, ButtonInteractionEvent event) {
         GameState info = GameState.fromPk(gamePk);
         if (info.failed()) {
             event.replyEmbeds(EmbedUtil.failure("Failed to get game info")).queue();
             return;
         }
 
+        JSONObject data = new JSONObject(RestClient.get("https://api.chew.pro/sports/mlb/%s/boxscore".formatted(gamePk)));
+        List<JSONObject> batters = MiscUtil.toList(data.getJSONObject("teams").getJSONObject(homeOrAway).getJSONArray(type), JSONObject.class);
+
         String title = "Box Score for %s @ %s".formatted(info.away().clubName(), info.home().clubName());
 
+        BoxScoreDataSets set = BoxScoreDataSets.valueOf(type.toUpperCase());
 
-        String[][] values = new String[2][9];
+        String[][] values = new String[batters.size() + 1][set.length()];
+        values[0] = set.headers;
 
-        values[0] = new String[] { "Batters", "AB", "R", "H", "RBI", "BB", "K", "AVG", "OPS" };
+        for(int i = 0; i < batters.size(); i++) {
+            JSONObject batter = batters.get(i);
+            JSONObject stats = batter.getJSONObject("stats");
+            values[i + 1] = set.parseFromLine(batter.getString("name"), stats);
+        }
 
-
-
-        values[1] = new String[] { "Player 1", "0", "0", "0", "0", "0", "0", "0.000", "0.000" };
-
-
-        ImageUtil.GeneratedImage image = ImageUtil.createTable(values);
-        if (image == null) {
+        ImageUtil.GeneratedImage image = ImageUtil.createTable(values, set);
+        if (image.failed()) {
             event.replyEmbeds(EmbedUtil.failure("Failed to create box score image")).queue();
             return;
         }
 
-        event.reply("Box Score for %s @ %s".formatted(info.away().clubName(), info.home().clubName()))
-            .addFiles(image.asFileUpload())
-            .setEphemeral(true)
-            .queue();
+        ActionRow row = ActionRow.of(
+            Button.primary("gameinfo:boxscore:" + gamePk + ":" + homeOrAway + ":batters", "Batters"),
+            Button.primary("gameinfo:boxscore:" + gamePk + ":" + homeOrAway + ":pitchers", "Pitchers"),
+            Button.primary("gameinfo:boxscore:" + gamePk + ":" + homeOrAway + ":bench", "Bench"),
+            Button.primary("gameinfo:boxscore:" + gamePk + ":" + homeOrAway + ":bullpen", "Bullpen"),
+            Button.primary("gameinfo:boxscore:" + gamePk + ":" + homeOrAway + ":info", "Info")
+        );
+
+        if (event.getButton().getLabel().contains("Box Score")) {
+            event.reply(title)
+                .addComponents(row)
+                .addFiles(image.asFileUpload())
+                .setEphemeral(true)
+                .queue();
+        } else {
+            event.editMessage(title)
+                .setComponents(row)
+                .setFiles(image.asFileUpload())
+                .queue();
+        }
+    }
+
+    public enum BoxScoreDataSets {
+        BATTERS(
+            new String[]{"Batters", "AB", "R", "H", "RBI", "BB", "K", "AVG", "OPS"},
+            new int[]{100, 30, 30, 30, 30, 30, 30, 50, 50}
+        ),
+        PITCHERS(
+            new String[]{"Pitchers", "IP", "H", "R", "ER", "BB", "K", "ERA"},
+            new int[]{100, 30, 30, 30, 30, 30, 30, 50}
+        ),
+        BENCH(
+            new String[]{"Bench", "B", "POS", "AVG", "G", "R", "H", "HR", "RBI", "SB"},
+            new int[]{100, 30, 30, 50, 30, 30, 30, 30, 30, 30}
+        ),
+        BULLPEN(
+            new String[]{"Bullpen", "T", "ERA", "IP", "H", "BB", "K"},
+            new int[]{100, 30, 50, 30, 30, 30, 30}
+        );
+
+        private final String[] headers;
+        private final int[] widths;
+
+        BoxScoreDataSets(String[] headers, int[] widths) {
+            this.headers = headers;
+            this.widths = widths;
+        }
+
+        public String[] headers() {
+            return headers;
+        }
+
+        public int[] columnWidths() {
+            return widths;
+        }
+
+        public String[] parseFromLine(String name, JSONObject stats) {
+            String[] line = new String[headers.length];
+            line[0] = name;
+            for (int i = 1; i < headers.length; i++) {
+                line[i] = stats.optString(headers[i].toLowerCase(Locale.ROOT), "");
+            }
+
+            return line;
+        }
+
+        public int totalWidth() {
+            int total = 0;
+            for (int width : widths) {
+                total += width;
+            }
+            return total;
+        }
+
+        public int length() {
+            return headers.length;
+        }
     }
 }
