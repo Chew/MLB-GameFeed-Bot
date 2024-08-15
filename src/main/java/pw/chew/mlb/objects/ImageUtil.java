@@ -134,6 +134,14 @@ public class ImageUtil {
 
         // iterate through data and write it onto the image
         for (int row = 0; row < data.length; row++) {
+            boolean lastRow = data[row][0].equals("Totals");
+            if (lastRow || row == 0) {
+                // make font bold
+                g2d.setFont(new Font("Proxima Nova", Font.BOLD, 14));
+            } else {
+                // make font normal
+                g2d.setFont(font);
+            }
             for (int col = 0; col < data[row].length; col++) {
                 // determine where to put it
                 int x = col + currentWidth + (col + 1) * padding;

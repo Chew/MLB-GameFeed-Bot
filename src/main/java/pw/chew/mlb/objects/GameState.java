@@ -142,6 +142,15 @@ public record GameState(JSONObject gameData, String gamePk) {
     }
 
     /**
+     * Returns the date from {@link #officialDate()} as Month Day, Year
+     *
+     * @return the date as Month Day, Year
+     */
+    public String friendlyDate() {
+        return officialDate().format(DateTimeFormatter.ofPattern("MMMM d, uuuu"));
+    }
+
+    /**
      * The current inning of the game.
      *
      * @return The current inning of the game

@@ -10,6 +10,7 @@ import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import org.json.JSONArray;
 import org.json.JSONObject;
 import pw.chew.chewbotcca.util.MiscUtil;
 import pw.chew.chewbotcca.util.RestClient;
@@ -19,6 +20,7 @@ import pw.chew.mlb.util.AutocompleteUtil;
 import pw.chew.mlb.util.EmbedUtil;
 import pw.chew.mlb.util.TeamEmoji;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -70,10 +72,10 @@ public class GameInfoCommand extends SlashCommand {
         }
 
         EmbedBuilder embed = new EmbedBuilder()
-            .setTitle("Game Info for %s @ %s".formatted(info.away().clubName(), info.home().clubName()))
+            .setTitle("Game Info for %s @ %s on %s".formatted(info.away().clubName(), info.home().clubName(), info.friendlyDate()))
+            .setDescription(info.summary())
             .addField("Attendance", info.friendlyAttendance(), true)
-            .addField("Weather", info.weather(), true)
-            ;
+            .addField("Weather", info.weather(), true);
 
         return embed.build();
     }
@@ -118,16 +120,76 @@ public class GameInfoCommand extends SlashCommand {
 
         // get box score data
         JSONObject data = new JSONObject(RestClient.get("https://api.chew.pro/sports/mlb/%s/boxscore".formatted(gamePk)));
-        List<JSONObject> batters = MiscUtil.toList(data.getJSONObject("teams").getJSONObject(homeOrAway).getJSONArray(type), JSONObject.class);
+        GameState.TeamInfo team = homeOrAway.equals("home") ? info.home() : info.away();
 
-        String title = "Box Score for %s @ %s".formatted(info.away().clubName(), info.home().clubName());
+        String title = """
+            # Box Score for %s @ %s
+            Viewing box score for team %s.
+            Use the buttons on the bottom to navigate.
+            """
+            .formatted(
+                info.away().clubName(), info.home().clubName(),
+                team.name()
+            );
+
+        // create the action row, allowing users to switch between different box score types
+        ActionRow row = ActionRow.of(
+            Button.primary("gameinfo:boxscore:" + gamePk + ":" + homeOrAway + ":batters", "Batters"),
+            Button.primary("gameinfo:boxscore:" + gamePk + ":" + homeOrAway + ":pitchers", "Pitchers"),
+            Button.primary("gameinfo:boxscore:" + gamePk + ":" + homeOrAway + ":bench", "Bench"),
+            Button.primary("gameinfo:boxscore:" + gamePk + ":" + homeOrAway + ":bullpen", "Bullpen"),
+            Button.primary("gameinfo:boxscore:" + gamePk + ":" + homeOrAway + ":info", "Info")
+        );
+
+        // we do our own stuff :)
+        if (type.equals("info")) {
+            // 4 types of info for team: batting, baserunning, fielding, and notes. Notes are special.
+            JSONObject teamData = data.getJSONObject("teams").getJSONObject(homeOrAway).getJSONObject("info");
+
+            List<String> infoResponse = new ArrayList<>();
+            infoResponse.add(title);
+
+            JSONArray notes = teamData.getJSONArray("notes");
+            if (!notes.isEmpty()) {
+                infoResponse.add("Notes");
+                for (JSONObject note : MiscUtil.toList(notes, JSONObject.class)) {
+                    infoResponse.add("#- %s-%s".formatted(note.getString("label"), note.getString("value")));
+                }
+
+                infoResponse.add("");
+            }
+
+            String[] types = {"batting", "baserunning", "fielding"};
+            for (String noteType : types) {
+                if (teamData.isNull(noteType))
+                    continue;
+
+                JSONArray noteData = teamData.getJSONArray(noteType);
+                infoResponse.add("## " + MiscUtil.capitalize(noteType));
+                for (JSONObject note : MiscUtil.toList(noteData, JSONObject.class)) {
+                    infoResponse.add("**%s** %s".formatted(note.getString("label"), note.getString("value")));
+                }
+            }
+
+            // send the message, if the initial button is pressed
+            if (event.getButton().getLabel().contains("Box Score")) {
+                event.reply(String.join("\n", infoResponse)).addComponents(row).setEphemeral(true).queue();
+            } else { // edit it if they're just clicking through
+                event.editMessage(String.join("\n", infoResponse)).setFiles(Collections.emptyList()).setComponents(row).queue();
+            }
+
+            return;
+        }
+
+        // get batters
+        List<JSONObject> batters = MiscUtil.toList(data.getJSONObject("teams").getJSONObject(homeOrAway).getJSONArray(type), JSONObject.class);
 
         // build the table
         BoxScoreDataSets set = BoxScoreDataSets.valueOf(type.toUpperCase());
         String[][] values = new String[batters.size() + 1][set.length()];
-        values[0] = set.headers;
+        values[0] = set.headers(team.abbreviation());
 
-        for(int i = 0; i < batters.size(); i++) {
+        for (int i = 0; i < batters.size(); i++) {
             JSONObject batter = batters.get(i);
             JSONObject stats = batter.getJSONObject("stats");
             values[i + 1] = set.parseFromLine(batter.getString("name"), stats);
@@ -139,15 +201,6 @@ public class GameInfoCommand extends SlashCommand {
             event.replyEmbeds(EmbedUtil.failure("Failed to create box score image")).queue();
             return;
         }
-
-        // create the action row, allowing users to switch between different box score types
-        ActionRow row = ActionRow.of(
-            Button.primary("gameinfo:boxscore:" + gamePk + ":" + homeOrAway + ":batters", "Batters"),
-            Button.primary("gameinfo:boxscore:" + gamePk + ":" + homeOrAway + ":pitchers", "Pitchers"),
-            Button.primary("gameinfo:boxscore:" + gamePk + ":" + homeOrAway + ":bench", "Bench"),
-            Button.primary("gameinfo:boxscore:" + gamePk + ":" + homeOrAway + ":bullpen", "Bullpen"),
-            Button.primary("gameinfo:boxscore:" + gamePk + ":" + homeOrAway + ":info", "Info")
-        );
 
         // send the message, if the initial button is pressed
         if (event.getButton().getLabel().contains("Box Score")) {
@@ -205,8 +258,12 @@ public class GameInfoCommand extends SlashCommand {
             this.widths = widths;
         }
 
-        public String[] headers() {
-            return headers;
+        public String[] headers(String abbrev) {
+            String[] team_headers = new String[headers.length];
+            team_headers[0] = headers[0] + " - " + abbrev;
+            System.arraycopy(headers, 1, team_headers, 1, headers.length - 1);
+
+            return team_headers;
         }
 
         public int[] columnWidths() {
