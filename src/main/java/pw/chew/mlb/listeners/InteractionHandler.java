@@ -12,10 +12,6 @@ import pw.chew.mlb.commands.StartGameCommand;
 import pw.chew.mlb.objects.GameBlurb;
 import pw.chew.mlb.objects.GameState;
 import pw.chew.mlb.util.EmbedUtil;
-import pw.chew.mlb.util.MLBAPIUtil;
-
-import java.util.ArrayList;
-import java.util.List;
 
 public class InteractionHandler extends ListenerAdapter {
     @Override
@@ -64,14 +60,19 @@ public class InteractionHandler extends ListenerAdapter {
                     String homeOrAway = parts[3];
                     GameInfoCommand.buildScoringPlays(gamePk, homeOrAway, event);
                 }
-                case "refresh" -> {
+                case "send", "refresh" -> {
                     GameState state = GameState.fromPk(gamePk);
                     if (state.failed()) {
                         event.replyEmbeds(EmbedUtil.failure("Failed to fetch game state. Please try again.")).setEphemeral(true).queue();
                         return;
                     }
 
-                    event.editMessageEmbeds(GameInfoCommand.buildGameInfoEmbed(state)).queue();
+                    if (action.equals("send")) {
+                        var rows = GameInfoCommand.buildActionRows(state);
+                        event.replyEmbeds(GameInfoCommand.buildGameInfoEmbed(state)).setComponents(rows).setEphemeral(true).queue();
+                    } else {
+                        event.editMessageEmbeds(GameInfoCommand.buildGameInfoEmbed(state)).queue();
+                    }
                 }
             }
         }

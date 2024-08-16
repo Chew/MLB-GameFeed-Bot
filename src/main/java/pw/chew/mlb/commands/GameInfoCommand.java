@@ -90,7 +90,7 @@ public class GameInfoCommand extends SlashCommand {
      * @param info the game info to build buttons for
      * @return the buttons
      */
-    private List<ActionRow> buildActionRows(GameState info) {
+    public static List<ActionRow> buildActionRows(GameState info) {
         String[] homeOrAway = {"away", "home"};
         StringSelectMenu away = null;
         StringSelectMenu home = null;
@@ -120,9 +120,10 @@ public class GameInfoCommand extends SlashCommand {
         }
 
         Button refreshButton = Button.secondary("gameinfo:refresh:%s".formatted(info.gamePk()), "Refresh");
+        Button onlineButton = Button.link("https://mlb.chew.pw/game/" + info.gamePk(), "View Online");
 
         return Arrays.asList(
-            ActionRow.of(refreshButton),
+            ActionRow.of(refreshButton, onlineButton),
             ActionRow.of(away),
             ActionRow.of(home)
         );
@@ -226,7 +227,7 @@ public class GameInfoCommand extends SlashCommand {
 
         List<String> friendly = new ArrayList<>();
 
-        friendly.add("# " + teamName);
+        friendly.add("# " + teamName + " Lineup");
         friendly.add("The following is the lineup for this team. It is subject to change at any time.");
         friendly.add("## Batting Order");
 
