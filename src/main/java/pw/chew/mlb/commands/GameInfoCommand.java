@@ -5,20 +5,25 @@ import com.jagrosh.jdautilities.command.SlashCommandEvent;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
-import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
+import net.dv8tion.jda.api.events.interaction.component.GenericComponentInteractionCreateEvent;
+import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
+import net.dv8tion.jda.api.interactions.components.selections.SelectOption;
+import net.dv8tion.jda.api.interactions.components.selections.StringSelectMenu;
+import net.dv8tion.jda.internal.utils.Checks;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import org.slf4j.LoggerFactory;
 import pw.chew.chewbotcca.util.MiscUtil;
 import pw.chew.chewbotcca.util.RestClient;
 import pw.chew.mlb.objects.GameState;
 import pw.chew.mlb.objects.ImageUtil;
 import pw.chew.mlb.util.AutocompleteUtil;
 import pw.chew.mlb.util.EmbedUtil;
-import pw.chew.mlb.util.TeamEmoji;
+import pw.chew.mlb.util.MLBAPIUtil;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -52,18 +57,13 @@ public class GameInfoCommand extends SlashCommand {
         }
 
         event.replyEmbeds(buildGameInfoEmbed(info))
-            .setComponents(buildButtons(info))
+            .setComponents(buildActionRows(info))
             .setEphemeral(true).queue();
     }
 
     @Override
     public void onAutoComplete(CommandAutoCompleteInteractionEvent event) {
         event.replyChoices(AutocompleteUtil.getTodayGames(true)).queue();
-    }
-
-    public MessageEmbed buildGameInfoEmbed(String gamePk) {
-        GameState info = GameState.fromPk(gamePk);
-        return buildGameInfoEmbed(info);
     }
 
     public MessageEmbed buildGameInfoEmbed(GameState info) {
@@ -75,14 +75,15 @@ public class GameInfoCommand extends SlashCommand {
             .setTitle("Game Info for %s @ %s on %s".formatted(info.away().clubName(), info.home().clubName(), info.friendlyDate()))
             .setDescription(info.summary())
             .addField("Attendance", info.friendlyAttendance(), true)
-            .addField("Weather", info.weather(), true);
+            .addField("Weather", info.weather(), true)
+            .setFooter("Use the menus below to find info for the specified team.");
 
         return embed.build();
     }
 
-    public List<ActionRow> buildButtons(String gamePk) {
+    public List<ActionRow> buildActionRows(String gamePk) {
         GameState info = GameState.fromPk(gamePk);
-        return buildButtons(info);
+        return buildActionRows(info);
     }
 
     /**
@@ -91,15 +92,95 @@ public class GameInfoCommand extends SlashCommand {
      * @param info the game info to build buttons for
      * @return the buttons
      */
-    public static List<ActionRow> buildButtons(GameState info) {
-        return Arrays.asList(ActionRow.of(
-            Button.primary("plangame:lineup:" + info.gamePk() + ":away", info.away().clubName() + " Lineup").withEmoji(TeamEmoji.fromTeamId(info.away().id())),
-            Button.primary("plangame:lineup:" + info.gamePk() + ":home", info.home().clubName() + " Lineup").withEmoji(TeamEmoji.fromTeamId(info.home().id()))
-        ), ActionRow.of(
-            // box score buttons
-            Button.primary("gameinfo:boxscore:" + info.gamePk() + ":away:batters", "Box Score " + info.away().clubName()),
-            Button.primary("gameinfo:boxscore:" + info.gamePk() + ":home:batters", "Box Score " + info.home().clubName())
-        ));
+    private List<ActionRow> buildActionRows(GameState info) {
+        StringSelectMenu.Builder menu = StringSelectMenu.create("gameinfo:%s:".formatted(info.gamePk()))
+            .setPlaceholder("Select %s Info".formatted(info.away().clubName()))
+            .addOptions(
+                SelectOption.of("Scoring Plays", "scoring_plays")
+                    .withDescription("View the scoring plays for this team."),
+                SelectOption.of("Lineup", "lineup")
+                    .withDescription("View the starting lineup for this team."),
+                SelectOption.of("Box Score", "boxscore")
+                    .withDescription("View the box score for this team.")
+            );
+
+        // Away
+        StringSelectMenu away = menu.setId("gameinfo:select:%s:away".formatted(info.gamePk()))
+            .setPlaceholder("Select %s Info".formatted(info.away().clubName())).build();
+        // Home
+        StringSelectMenu home = menu.setId("gameinfo:select:%s:home".formatted(info.gamePk()))
+            .setPlaceholder("Select %s Info".formatted(info.home().clubName())).build();
+
+        return Arrays.asList(
+            ActionRow.of(away),
+            ActionRow.of(home)
+        );
+    }
+
+    /**
+     * Handles when this class's game info select menu is interacted with.
+     *
+     * @param event the event to handle
+     */
+    public static void handleSelectMenu(StringSelectInteractionEvent event) {
+        String[] parts = event.getComponentId().split(":");
+        String gamePk = parts[2];
+        String team = parts[3];
+
+        // We get the team name the dirtiest way possible.
+        String placeholder = event.getSelectMenu().getPlaceholder();
+        Checks.notNull(placeholder, "Placeholder"); // We set a placeholder, so this should never be null
+        String teamName = placeholder.substring(7, event.getSelectMenu().getPlaceholder().length() - 5);
+
+        // Determine what the user clicked
+        String action = event.getSelectedOptions().get(0).getValue();
+        LoggerFactory.getLogger(GameInfoCommand.class).debug("Detected signs of {} in the handleSelectMenu Galaxy", action);
+        switch (action) {
+            case "lineup" -> event.reply(buildLineup(gamePk, team, teamName)).setEphemeral(true).queue();
+            //case "scoring_plays" -> buildScoringPlays(gamePk, team, event);
+            case "boxscore" -> buildBoxScore(gamePk, team, "batters", event);
+        }
+    }
+
+    /**
+     * Builds a lineup for a team
+     *
+     * @param gamePk the gamePk to get the lineup for
+     * @param awayOrHome the team to get the lineup for, 'away' or 'home'
+     * @param teamName the name of the team
+     * @return the lineup as a string
+     */
+    public static String buildLineup(String gamePk, String awayOrHome, String teamName) {
+        var lineup = MLBAPIUtil.getLineup(gamePk, awayOrHome);
+
+        List<String> friendly = new ArrayList<>();
+
+        friendly.add("# " + teamName);
+        friendly.add("The following is the lineup for this team. It is subject to change at any time.");
+        friendly.add("## Batting Order");
+
+        var battingOrder = lineup.get("Batting Order");
+
+        if (battingOrder.isEmpty()) {
+            friendly.add("The batting order is currently not available. Please try again closer to the scheduled game time.");
+        } else {
+            for (var player : battingOrder) {
+                friendly.add(player.friendlyString());
+            }
+        }
+
+        // add a string before the next-to-last element. e.g. "a", "b", "c" <-- between b and c
+        friendly.add("## Probable Pitcher");
+
+        var probablePitcher = lineup.get("Probable Pitcher");
+
+        if (probablePitcher.isEmpty()) {
+            friendly.add("The probable pitcher is currently not available. Please try again closer to the scheduled game time.");
+        } else {
+            friendly.add(probablePitcher.get(0).friendlyString());
+        }
+
+        return String.join("\n", friendly);
     }
 
     /**
@@ -110,7 +191,7 @@ public class GameInfoCommand extends SlashCommand {
      * @param type the type of box score to get, 'batters', 'pitchers', 'bench', 'bullpen', or 'info'
      * @param event the event to reply to
      */
-    public static void buildBoxScore(String gamePk, String homeOrAway, String type, ButtonInteractionEvent event) {
+    public static void buildBoxScore(String gamePk, String homeOrAway, String type, GenericComponentInteractionCreateEvent event) {
         // get game info
         GameState info = GameState.fromPk(gamePk);
         if (info.failed()) {
@@ -136,8 +217,8 @@ public class GameInfoCommand extends SlashCommand {
         ActionRow row = ActionRow.of(
             Button.primary("gameinfo:boxscore:" + gamePk + ":" + homeOrAway + ":batters", "Batters"),
             Button.primary("gameinfo:boxscore:" + gamePk + ":" + homeOrAway + ":pitchers", "Pitchers"),
-            Button.primary("gameinfo:boxscore:" + gamePk + ":" + homeOrAway + ":bench", "Bench"),
-            Button.primary("gameinfo:boxscore:" + gamePk + ":" + homeOrAway + ":bullpen", "Bullpen"),
+            Button.primary("gameinfo:boxscore:" + gamePk + ":" + homeOrAway + ":bench", "Bench").withDisabled(info.isFinal()),
+            Button.primary("gameinfo:boxscore:" + gamePk + ":" + homeOrAway + ":bullpen", "Bullpen").withDisabled(info.isFinal()),
             Button.primary("gameinfo:boxscore:" + gamePk + ":" + homeOrAway + ":info", "Info")
         );
 
@@ -172,7 +253,7 @@ public class GameInfoCommand extends SlashCommand {
             }
 
             // send the message, if the initial button is pressed
-            if (event.getButton().getLabel().contains("Box Score")) {
+            if (event instanceof StringSelectInteractionEvent) {
                 event.reply(String.join("\n", infoResponse)).addComponents(row).setEphemeral(true).queue();
             } else { // edit it if they're just clicking through
                 event.editMessage(String.join("\n", infoResponse)).setFiles(Collections.emptyList()).setComponents(row).queue();
@@ -203,17 +284,10 @@ public class GameInfoCommand extends SlashCommand {
         }
 
         // send the message, if the initial button is pressed
-        if (event.getButton().getLabel().contains("Box Score")) {
-            event.reply(title)
-                .addComponents(row)
-                .addFiles(image.asFileUpload())
-                .setEphemeral(true)
-                .queue();
+        if (event instanceof StringSelectInteractionEvent) {
+            event.reply(title).addComponents(row).addFiles(image.asFileUpload()).setEphemeral(true).queue();
         } else { // edit it if they're just clicking through
-            event.editMessage(title)
-                .setComponents(row)
-                .setFiles(image.asFileUpload())
-                .queue();
+            event.editMessage(title).setComponents(row).setFiles(image.asFileUpload()).queue();
         }
     }
 
