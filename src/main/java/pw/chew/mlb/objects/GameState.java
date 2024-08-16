@@ -29,7 +29,7 @@ public record GameState(JSONObject gameData, String gamePk) {
      */
     @NotNull
     public static GameState fromPk(String gamePk) {
-        String res = RestClient.get("https://statsapi.mlb.com/api/v1.1/game/:id/feed/live?language=en&fields=gameData,venue,fieldInfo,capacity,weather,condition,temp,wind,gameInfo,attendance,game,pk,datetime,dateTime,status,detailedState,abstractGameState,liveData,plays,allPlays,result,description,awayScore,homeScore,event,about,isComplete,count,balls,strikes,outs,playEvents,details,isInPlay,isScoringPlay,eventType,hitData,launchSpeed,launchAngle,totalDistance,trajectory,hardness,isPitch,atBatIndex,playId,currentPlay,matchup,batter,fullName,pitcher,postOnFirst,postOnSecond,postOnThird,linescore,currentInning,currentInningOrdinal,inningState,teams,home,name,clubName,abbreviation,runs,away,innings,num,hits,errors,leftOnBase,decisions,winner,id,loser,save,boxscore,players,stats,pitching,note"
+        String res = RestClient.get("https://statsapi.mlb.com/api/v1.1/game/:id/feed/live?language=en&fields=gameData,venue,fieldInfo,capacity,weather,condition,temp,wind,gameInfo,attendance,game,pk,datetime,dateTime,status,detailedState,abstractGameState,liveData,plays,allPlays,result,rbi,description,awayScore,homeScore,event,about,inning,isTopInning,isComplete,count,balls,strikes,outs,playEvents,details,isInPlay,isScoringPlay,eventType,hitData,launchSpeed,launchAngle,totalDistance,trajectory,hardness,isPitch,atBatIndex,playId,currentPlay,scoringPlays,matchup,batter,fullName,pitcher,postOnFirst,postOnSecond,postOnThird,linescore,currentInning,currentInningOrdinal,inningState,teams,home,name,clubName,abbreviation,runs,away,innings,num,hits,errors,leftOnBase,decisions,winner,id,loser,save,boxscore,players,stats,pitching,note"
             .replace(":id", gamePk));
 
         try {
@@ -193,6 +193,22 @@ public record GameState(JSONObject gameData, String gamePk) {
      */
     public JSONObject currentPlay() {
         return gameData.getJSONObject("liveData").getJSONObject("plays").getJSONObject("currentPlay");
+    }
+
+    /**
+     * Returns a list of all scoring plays for this game.
+     *
+     * @return a list of all scoring plays for this game
+     */
+    public List<JSONObject> scoringPlays() {
+        List<Integer> scoringPlays = MiscUtil.toList(gameData().getJSONObject("liveData").getJSONObject("plays").getJSONArray("scoringPlays"), Integer.class);
+
+        List<JSONObject> plays = new ArrayList<>();
+        for (int playIndex : scoringPlays) {
+            plays.add(plays().getJSONObject(playIndex));
+        }
+
+        return plays;
     }
 
     /**

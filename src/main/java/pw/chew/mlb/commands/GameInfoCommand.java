@@ -24,12 +24,15 @@ import pw.chew.mlb.objects.ImageUtil;
 import pw.chew.mlb.util.AutocompleteUtil;
 import pw.chew.mlb.util.EmbedUtil;
 import pw.chew.mlb.util.MLBAPIUtil;
+import pw.chew.mlb.util.TeamEmoji;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * A command to get information about a specific game
@@ -66,7 +69,7 @@ public class GameInfoCommand extends SlashCommand {
         event.replyChoices(AutocompleteUtil.getTodayGames(true)).queue();
     }
 
-    public MessageEmbed buildGameInfoEmbed(GameState info) {
+    public static MessageEmbed buildGameInfoEmbed(GameState info) {
         if (info.failed()) {
             return EmbedUtil.failure("Failed to get game info");
         }
@@ -81,11 +84,6 @@ public class GameInfoCommand extends SlashCommand {
         return embed.build();
     }
 
-    public List<ActionRow> buildActionRows(String gamePk) {
-        GameState info = GameState.fromPk(gamePk);
-        return buildActionRows(info);
-    }
-
     /**
      * Builds buttons for the response to the initial invocation of the command
      *
@@ -93,25 +91,38 @@ public class GameInfoCommand extends SlashCommand {
      * @return the buttons
      */
     private List<ActionRow> buildActionRows(GameState info) {
-        StringSelectMenu.Builder menu = StringSelectMenu.create("gameinfo:%s:".formatted(info.gamePk()))
-            .setPlaceholder("Select %s Info".formatted(info.away().clubName()))
-            .addOptions(
-                SelectOption.of("Scoring Plays", "scoring_plays")
-                    .withDescription("View the scoring plays for this team."),
-                SelectOption.of("Lineup", "lineup")
-                    .withDescription("View the starting lineup for this team."),
-                SelectOption.of("Box Score", "boxscore")
-                    .withDescription("View the box score for this team.")
-            );
+        String[] homeOrAway = {"away", "home"};
+        StringSelectMenu away = null;
+        StringSelectMenu home = null;
 
-        // Away
-        StringSelectMenu away = menu.setId("gameinfo:select:%s:away".formatted(info.gamePk()))
-            .setPlaceholder("Select %s Info".formatted(info.away().clubName())).build();
-        // Home
-        StringSelectMenu home = menu.setId("gameinfo:select:%s:home".formatted(info.gamePk()))
-            .setPlaceholder("Select %s Info".formatted(info.home().clubName())).build();
+        for (String homeAway : homeOrAway) {
+            GameState.TeamInfo team = homeAway.equals("away") ? info.away() : info.home();
+
+            StringSelectMenu.Builder menu = StringSelectMenu.create("gameinfo:select:%s:%s".formatted(info.gamePk(), homeAway))
+                .setPlaceholder("Select %s Info".formatted(team.clubName()))
+                .addOptions(
+                    SelectOption.of("%s Scoring Plays".formatted(team.clubName()), "scoring_plays")
+                        .withDescription("View the scoring plays for the %s.".formatted(team.clubName()))
+                        .withEmoji(TeamEmoji.fromTeamId(team.id())),
+                    SelectOption.of("%s Lineup".formatted(team.clubName()), "lineup")
+                        .withDescription("View the starting lineup for the %s.".formatted(team.clubName()))
+                        .withEmoji(TeamEmoji.fromTeamId(team.id())),
+                    SelectOption.of("%s Box Score".formatted(team.clubName()), "boxscore")
+                        .withDescription("View the box score for %s.".formatted(team.clubName()))
+                        .withEmoji(TeamEmoji.fromTeamId(team.id()))
+                );
+
+            if (homeAway.equals("home")) {
+                home = menu.build();
+            } else {
+                away = menu.build();
+            }
+        }
+
+        Button refreshButton = Button.secondary("gameinfo:refresh:%s".formatted(info.gamePk()), "Refresh");
 
         return Arrays.asList(
+            ActionRow.of(refreshButton),
             ActionRow.of(away),
             ActionRow.of(home)
         );
@@ -134,11 +145,71 @@ public class GameInfoCommand extends SlashCommand {
 
         // Determine what the user clicked
         String action = event.getSelectedOptions().get(0).getValue();
-        LoggerFactory.getLogger(GameInfoCommand.class).debug("Detected signs of {} in the handleSelectMenu Galaxy", action);
         switch (action) {
             case "lineup" -> event.reply(buildLineup(gamePk, team, teamName)).setEphemeral(true).queue();
-            //case "scoring_plays" -> buildScoringPlays(gamePk, team, event);
+            case "scoring_plays" -> buildScoringPlays(gamePk, team, event);
             case "boxscore" -> buildBoxScore(gamePk, team, "batters", event);
+        }
+    }
+
+    /**
+     * Builds an embed of scoring plays for a team
+     *
+     * @param gamePk the gamePk to get the scoring plays for
+     * @param team the team to get the scoring plays for, 'away' or 'home'
+     * @param event the event to reply to
+     */
+    public static void buildScoringPlays(String gamePk, String team, GenericComponentInteractionCreateEvent event) {
+        GameState gameInfo = GameState.fromPk(gamePk);
+        if (gameInfo.failed()) {
+            event.replyEmbeds(EmbedUtil.failure("Failed to get game info. Please try again later.")).setEphemeral(true).queue();
+            return;
+        }
+
+        Map<String, List<String>> inningMap = new HashMap<>();
+        GameState.TeamInfo selectedTeam = team.equals("home") ? gameInfo.home() : gameInfo.away();
+        String inningState = team.equals("home") ? "Bottom" : "Top";
+        String scoreTemplate = "%s%s %s%s - %s%s %s%s".formatted(
+            team.equals("away") ? "**" : "", gameInfo.away().abbreviation(), "%d", team.equals("away") ? "**" : "",
+            team.equals("home") ? "**" : "", "%d", gameInfo.home().abbreviation(), team.equals("home") ? "**" : ""
+        );
+
+        List<JSONObject> scoringPlays = gameInfo.scoringPlays();
+        for (JSONObject play : scoringPlays) {
+            JSONObject about = play.getJSONObject("about");
+            if ((team.equals("home") && about.getBoolean("isTopInning") ||
+                (team.equals("away") && !about.getBoolean("isTopInning")))) {
+                continue;
+            }
+
+            JSONObject result = play.getJSONObject("result");
+
+            String inning = about.getInt("inning") + "";
+            String description = result.getString("description");
+            String fullDesc = "- [%s] %s *(+%s RBI)*"
+                .formatted(scoreTemplate.formatted(result.getInt("awayScore"), result.getInt("homeScore")), description, result.getInt("rbi"));
+
+            inningMap.computeIfAbsent(inning, k -> new ArrayList<>()).add(fullDesc);
+        }
+
+        EmbedBuilder embed = new EmbedBuilder()
+            .setTitle("Scoring Plays for %s".formatted(selectedTeam.name()));
+
+        inningMap.forEach((inning, plays) -> {
+            embed.addField("%s %s".formatted(inningState, inning), String.join("\n", plays), false);
+        });
+
+        if (inningMap.isEmpty()) {
+            embed.setDescription("No scoring plays for this team.");
+        }
+
+        Button refreshButton = Button.secondary("gameinfo:scoring_plays:%s:%s".formatted(gamePk, team), "Refresh");
+
+        // send the message, if the initial button is pressed
+        if (event instanceof StringSelectInteractionEvent) {
+            event.replyEmbeds(embed.build()).addActionRow(refreshButton).setEphemeral(true).queue();
+        } else { // edit it if they're just clicking through
+            event.editMessageEmbeds(embed.build()).queue();
         }
     }
 

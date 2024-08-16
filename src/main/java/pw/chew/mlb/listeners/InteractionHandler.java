@@ -10,6 +10,7 @@ import pw.chew.mlb.commands.GameInfoCommand;
 import pw.chew.mlb.commands.PlanGameCommand;
 import pw.chew.mlb.commands.StartGameCommand;
 import pw.chew.mlb.objects.GameBlurb;
+import pw.chew.mlb.objects.GameState;
 import pw.chew.mlb.util.EmbedUtil;
 import pw.chew.mlb.util.MLBAPIUtil;
 
@@ -58,6 +59,19 @@ public class InteractionHandler extends ListenerAdapter {
                     String type = parts[4];
 
                     GameInfoCommand.buildBoxScore(gamePk, homeOrAway, type, event);
+                }
+                case "scoring_plays" -> {
+                    String homeOrAway = parts[3];
+                    GameInfoCommand.buildScoringPlays(gamePk, homeOrAway, event);
+                }
+                case "refresh" -> {
+                    GameState state = GameState.fromPk(gamePk);
+                    if (state.failed()) {
+                        event.replyEmbeds(EmbedUtil.failure("Failed to fetch game state. Please try again.")).setEphemeral(true).queue();
+                        return;
+                    }
+
+                    event.editMessageEmbeds(GameInfoCommand.buildGameInfoEmbed(state)).queue();
                 }
             }
         }
