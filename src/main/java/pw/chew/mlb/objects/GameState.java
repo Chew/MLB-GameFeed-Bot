@@ -70,13 +70,14 @@ public record GameState(JSONObject gameData, String gamePk) {
     }
 
     /**
-     * Check if a game is scheduled.
+     * Check if a game is scheduled (or in pre-game).
      * The game is scheduled, but hasn't started or been postponed/canceled.
      *
      * @return true if the game is canceled, false otherwise
      */
     public boolean isScheduled() {
-        return gameData().getJSONObject("gameData").getJSONObject("status").getString("detailedState").equals("Pre-Game");
+        String detailedState = gameData().getJSONObject("gameData").getJSONObject("status").getString("detailedState");
+        return detailedState.contains("Pre-Game") || detailedState.contains("Scheduled");
     }
 
     /**
