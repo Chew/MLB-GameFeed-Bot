@@ -14,6 +14,7 @@ import pw.chew.chewbotcca.util.DatabaseHelper;
 import pw.chew.chewbotcca.util.RestClient;
 import pw.chew.mlb.commands.AdminCommand;
 import pw.chew.mlb.commands.ConfigCommand;
+import pw.chew.mlb.commands.GameInfoCommand;
 import pw.chew.mlb.commands.PlanGameCommand;
 import pw.chew.mlb.commands.ScoreCommand;
 import pw.chew.mlb.commands.SetInfoCommand;
@@ -64,8 +65,8 @@ public class MLBBot {
             // Main commands
             new StartGameCommand(), new StopGameCommand(), new ScoreCommand(), new SetInfoCommand(), new ConfigCommand(),
             new PlanGameCommand()
-            , // Util Commands
-            new StandingsCommand()
+            , // Stats Commands
+            new StandingsCommand(), new GameInfoCommand()
         );
 
         //client.forceGuildOnly("148195924567392257");
