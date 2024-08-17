@@ -69,6 +69,13 @@ public class GameInfoCommand extends SlashCommand {
         event.replyChoices(AutocompleteUtil.getTodayGames(true)).queue();
     }
 
+    /**
+     * Builds an embed for the game info.
+     * Doesn't include ActionRows, use {@link #buildActionRows(GameState)}.
+     *
+     * @param info the game info to build the embed for
+     * @return the embed
+     */
     public static MessageEmbed buildGameInfoEmbed(GameState info) {
         if (info.failed()) {
             return EmbedUtil.failure("Failed to get game info");
@@ -119,7 +126,7 @@ public class GameInfoCommand extends SlashCommand {
             }
         }
 
-        Button refreshButton = Button.secondary("gameinfo:refresh:%s".formatted(info.gamePk()), "Refresh");
+        Button refreshButton = Button.secondary("gameinfo:refresh:%s".formatted(info.gamePk()), "Refresh").withDisabled(info.isFinal());
         Button onlineButton = Button.link("https://mlb.chew.pw/game/" + info.gamePk(), "View Online");
 
         return Arrays.asList(
@@ -204,7 +211,7 @@ public class GameInfoCommand extends SlashCommand {
             embed.setDescription("No scoring plays for this team.");
         }
 
-        Button refreshButton = Button.secondary("gameinfo:scoring_plays:%s:%s".formatted(gamePk, team), "Refresh");
+        Button refreshButton = Button.secondary("gameinfo:scoring_plays:%s:%s".formatted(gamePk, team), "Refresh").withDisabled(gameInfo.isFinal());
 
         // send the message, if the initial button is pressed
         if (event instanceof StringSelectInteractionEvent) {

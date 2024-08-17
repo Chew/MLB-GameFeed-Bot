@@ -1,5 +1,6 @@
 package pw.chew.mlb.objects;
 
+import net.dv8tion.jda.api.utils.TimeFormat;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
@@ -66,6 +67,16 @@ public record GameState(JSONObject gameData, String gamePk) {
      */
     public String gameState() {
         return gameData().getJSONObject("gameData").getJSONObject("status").getString("abstractGameState");
+    }
+
+    /**
+     * Check if a game is scheduled.
+     * The game is scheduled, but hasn't started or been postponed/canceled.
+     *
+     * @return true if the game is canceled, false otherwise
+     */
+    public boolean isScheduled() {
+        return gameData().getJSONObject("gameData").getJSONObject("status").getString("detailedState").equals("Pre-Game");
     }
 
     /**
@@ -591,6 +602,10 @@ public record GameState(JSONObject gameData, String gamePk) {
      * @return the summary of the game
      */
     public String summary() {
+        if (isScheduled()) {
+            return "The game is scheduled to start at %s.".formatted(TimeFormat.DATE_TIME_SHORT.format(officialDate()));
+        }
+
         int homeRuns = home().runs();
         int awayRuns = away().runs();
 
