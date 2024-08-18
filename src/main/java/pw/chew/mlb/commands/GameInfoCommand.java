@@ -16,7 +16,6 @@ import net.dv8tion.jda.api.interactions.components.selections.StringSelectMenu;
 import net.dv8tion.jda.internal.utils.Checks;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import org.slf4j.LoggerFactory;
 import pw.chew.chewbotcca.util.MiscUtil;
 import pw.chew.chewbotcca.util.RestClient;
 import pw.chew.mlb.objects.GameState;
@@ -313,7 +312,7 @@ public class GameInfoCommand extends SlashCommand {
             if (!notes.isEmpty()) {
                 infoResponse.add("Notes");
                 for (JSONObject note : MiscUtil.toList(notes, JSONObject.class)) {
-                    infoResponse.add("#- %s-%s".formatted(note.getString("label"), note.getString("value")));
+                    infoResponse.add("-# %s-%s".formatted(note.getString("label"), note.getString("value")));
                 }
 
                 infoResponse.add("");

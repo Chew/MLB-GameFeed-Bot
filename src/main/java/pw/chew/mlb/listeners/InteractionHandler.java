@@ -44,7 +44,6 @@ public class InteractionHandler extends ListenerAdapter {
         }
 
         if (event.getComponentId().startsWith("gameinfo:")) {
-            LoggerFactory.getLogger(InteractionHandler.class).info(event.getComponentId());
             String[] parts = event.getComponentId().split(":");
 
             String action = parts[1];
