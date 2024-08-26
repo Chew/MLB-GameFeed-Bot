@@ -11,6 +11,8 @@ import pw.chew.chewbotcca.util.RestClient;
 import java.util.ArrayList;
 import java.util.List;
 
+import static pw.chew.mlb.MLBBot.SEASON;
+
 /**
  * Team Emoji. Pulls from the bot's emoji on Discord and matches them to teams.
  */
@@ -21,7 +23,7 @@ public record TeamEmoji(String name, String clubName, int id, Emoji emoji) {
         LoggerFactory.getLogger(TeamEmoji.class).debug("Setting up emojis...");
 
         // Retrieve Emoji from Discoed
-        JSONArray teams = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/teams?sportIds=1,11,12,13,14&season=2024&fields=teams,id,name,clubName,active")).getJSONArray("teams");
+        JSONArray teams = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/teams?sportIds=1,11,12,13,14&season=%s&fields=teams,id,name,clubName,active".formatted(SEASON))).getJSONArray("teams");
         // TODO: Convert this to native JDA calls when possible
         JSONArray emojis = new JSONObject(RestClient.get("https://discord.com/api/v10/applications/%s/emojis".formatted(jda.getSelfUser().getId()), jda.getToken())).getJSONArray("items");
 
@@ -33,7 +35,6 @@ public record TeamEmoji(String name, String clubName, int id, Emoji emoji) {
 
             String emojiName = emoji.getName();
 
-            // skip _icon, TODO: Make it check for _[number]
             if (!emojiName.startsWith("team_")) {
                 continue;
             }
@@ -69,6 +70,7 @@ public record TeamEmoji(String name, String clubName, int id, Emoji emoji) {
      * @return the emoji
      * @deprecated use {@link #fromTeamId(int)} or {@link #fromTeamId(String)} instead
      */
+    @Deprecated
     public static Emoji fromName(String input) {
         TeamEmoji unknownEmoji = cache.stream().filter(teamEmoji -> teamEmoji.name().equals("Unknown")).findFirst().orElseThrow();
 
@@ -84,6 +86,7 @@ public record TeamEmoji(String name, String clubName, int id, Emoji emoji) {
      * @return the emoji
      * @deprecated use {@link #fromTeamId(int)} or {@link #fromTeamId(String)} instead
      */
+    @Deprecated
     public static Emoji fromClubName(String input) {
         TeamEmoji unknownEmoji = cache.stream().filter(teamEmoji -> teamEmoji.name().equals("Unknown")).findFirst().orElseThrow();
 
