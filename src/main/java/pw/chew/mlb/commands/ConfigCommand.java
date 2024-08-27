@@ -115,6 +115,7 @@ public class ConfigCommand extends SlashCommand {
                 } else {
                     event.replyEmbeds(buildConfigEmbed(config, event.getGuild())).setEphemeral(true).queue();
                 }
+                return;
             }
 
             ServerConfig current = ServerConfig.getConfig(event.getGuild().getId(), true);
