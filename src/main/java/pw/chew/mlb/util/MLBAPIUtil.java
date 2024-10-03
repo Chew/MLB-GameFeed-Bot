@@ -146,7 +146,7 @@ public class MLBAPIUtil {
 
         public List<Command.Choice> asPostSeasonChoices() {
             // we only want people in the post-season. These teams are: 147, 110, 114, 118, 116, 117, 143, 121, 158, 119, 135, 109, 144
-            List<Integer> postSeason = Arrays.asList(147, 110, 114, 118, 116, 117, 143, 121, 158, 119, 135, 109, 144);
+            List<Integer> postSeason = Arrays.asList(147, 114, 118, 116, 143, 121, 158, 119, 135);
 
             List<Command.Choice> choices = new ArrayList<>();
             for (int i = 0; i < raw.length(); i++) {
