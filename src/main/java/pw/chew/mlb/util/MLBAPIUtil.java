@@ -144,25 +144,10 @@ public class MLBAPIUtil {
             return choices.subList(0, Math.min(choices.size(), 25));
         }
 
-        public List<Command.Choice> asPostSeasonChoices() {
-            // we only want people in the post-season. These teams are: 147, 110, 114, 118, 116, 117, 143, 121, 158, 119, 135, 109, 144
-            List<Integer> postSeason = Arrays.asList(147, 114, 121, 119);
-
-            List<Command.Choice> choices = new ArrayList<>();
-            for (int i = 0; i < raw.length(); i++) {
-                JSONObject team = raw.getJSONObject(i);
-                if (postSeason.contains(team.getInt("id"))) {
-                    choices.add(new Command.Choice(team.getString("name"), team.getInt("id")));
-                }
-            }
-
-            return choices;
-        }
-
         public List<Command.Choice> potentialChoices(String query) {
             // If we don't have an input, return all choices
             if (query.isBlank()) {
-                return asPostSeasonChoices();
+                return asChoices();
             }
 
             List<Command.Choice> potential = new ArrayList<>();

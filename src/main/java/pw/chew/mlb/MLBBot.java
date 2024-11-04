@@ -54,7 +54,7 @@ public class MLBBot {
         CommandClientBuilder client = new CommandClientBuilder();
 
         // Set the client settings
-        client.setActivity(Activity.watching("the 2024 season!"));
+        client.setActivity(Activity.watching("the off-season!"));
         client.setOwnerId(prop.getProperty("userId", "476488167042580481"));
         client.setPrefix("woody!");
 
