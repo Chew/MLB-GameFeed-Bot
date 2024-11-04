@@ -1,8 +1,8 @@
 package pw.chew.mlb.util;
 
 import net.dv8tion.jda.api.JDA;
+import net.dv8tion.jda.api.entities.emoji.ApplicationEmoji;
 import net.dv8tion.jda.api.entities.emoji.Emoji;
-import net.dv8tion.jda.api.utils.data.DataObject;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.slf4j.LoggerFactory;
@@ -24,15 +24,10 @@ public record TeamEmoji(String name, String clubName, int id, Emoji emoji) {
 
         // Retrieve Emoji from Discoed
         JSONArray teams = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/teams?sportIds=1,11,12,13,14&season=%s&fields=teams,id,name,clubName,active".formatted(SEASON))).getJSONArray("teams");
-        // TODO: Convert this to native JDA calls when possible
-        JSONArray emojis = new JSONObject(RestClient.get("https://discord.com/api/v10/applications/%s/emojis".formatted(jda.getSelfUser().getId()), jda.getToken())).getJSONArray("items");
+        List<ApplicationEmoji> emojis = jda.retrieveApplicationEmojis().complete();
 
         // iterate through emojis
-        for (Object emojiObj : emojis) {
-            JSONObject emojiJsonObj = (JSONObject) emojiObj;
-            DataObject emojiData = DataObject.fromJson(emojiJsonObj.toString());
-            Emoji emoji = Emoji.fromData(emojiData);
-
+        for (ApplicationEmoji emoji : emojis) {
             String emojiName = emoji.getName();
 
             if (!emojiName.startsWith("team_")) {

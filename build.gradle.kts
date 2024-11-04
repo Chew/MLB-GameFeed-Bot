@@ -19,7 +19,7 @@ repositories {
 }
 
 dependencies {
-    implementation("net.dv8tion", "JDA", "5.0.2")
+    implementation("net.dv8tion", "JDA", "5.2.0")
     implementation("pw.chew", "jda-chewtils", "2.0")
     implementation("org.json", "json", "20240303")
     implementation("ch.qos.logback", "logback-classic", "1.5.6")
