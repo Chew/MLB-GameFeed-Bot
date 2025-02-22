@@ -38,7 +38,7 @@ public class MLBBot {
     public static final List<JSONObject> TEAMS = new ArrayList<>();
     public static final EventWaiter waiter = new EventWaiter();
 
-    public static final int SEASON = 2024;
+    public static final int SEASON = 2025;
 
     public static void main(String[] args) throws IOException {
         // Load properties into the PropertiesManager
