@@ -585,7 +585,7 @@ public record GameState(JSONObject gameData, String gamePk) {
                 player = homePlayers.getJSONObject("ID" + id);
             }
 
-            String note = player.getJSONObject("stats").getJSONObject("pitching").getString("note");
+            String note = player.getJSONObject("stats").getJSONObject("pitching").optString("note");
 
             // Capitalize the key
             String keyCapitalized = key.substring(0, 1).toUpperCase() + key.substring(1);
