@@ -8,6 +8,7 @@ import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
+import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
@@ -34,7 +35,7 @@ public class StartGameCommand extends SlashCommand {
             DiscordLocale.SPANISH, "Comienza un juego de MLB actualmente activo"
         );
 
-        this.guildOnly = true;
+        this.contexts = new InteractionContextType[]{InteractionContextType.GUILD};
         this.options = Collections.singletonList(
             new OptionData(OptionType.INTEGER, "game", "Which game to listen to", true)
                 .setDescriptionLocalization(DiscordLocale.SPANISH, "A qué juego escuchar")

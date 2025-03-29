@@ -7,6 +7,7 @@ import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageEmbed;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
+import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
@@ -24,6 +25,7 @@ public class ConfigCommand extends SlashCommand {
         this.name = "config";
         this.help = "Configure MLB Bot";
         this.userPermissions = new Permission[]{Permission.MANAGE_CHANNEL};
+        this.contexts = new InteractionContextType[]{InteractionContextType.GUILD};
         this.children = new SlashCommand[]{
             new ConfigChannelSubcommand(), // Channel
             new ConfigServerSubcommand()   // Server
