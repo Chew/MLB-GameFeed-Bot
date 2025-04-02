@@ -31,7 +31,7 @@ public record GameState(JSONObject gameData, String gamePk) {
     @NotNull
     public static GameState fromPk(String gamePk) {
         String res = RestClient.get("https://statsapi.mlb.com/api/v1.1/game/:id/feed/live?language=en&fields=gameData,venue,fieldInfo,capacity,weather,condition,temp,wind,gameInfo,attendance,game,pk,datetime,dateTime,status,detailedState,abstractGameState,liveData,plays,allPlays,result,rbi,description,awayScore,homeScore,event,about,inning,isTopInning,isComplete,count,balls,strikes,outs,playEvents,details,isInPlay,isScoringPlay,eventType,hitData,launchSpeed,launchAngle,totalDistance,trajectory,hardness,isPitch,atBatIndex,playId,currentPlay,scoringPlays,matchup,batter,fullName,pitcher,postOnFirst,postOnSecond,postOnThird,linescore,currentInning,currentInningOrdinal,inningState,teams,home,name,clubName,abbreviation,runs,away,innings,num,hits,errors,leftOnBase,decisions,winner,id,loser,save,boxscore,players,stats,pitching,note"
-            .replace(":id", gamePk));
+            .replace(":id", gamePk)).asString();
 
         try {
             JSONObject json = new JSONObject(res);
@@ -399,9 +399,9 @@ public record GameState(JSONObject gameData, String gamePk) {
 
         String playId = hitData.getString("playId");
 
-        return new JSONObject(RestClient.get("https://baseballsavant.mlb.com/gamefeed/x-parks/%s/%s?".formatted(
+        return RestClient.get("https://baseballsavant.mlb.com/gamefeed/x-parks/%s/%s?".formatted(
             gameData().getJSONObject("gameData").getJSONObject("game").getInt("pk"), playId
-        )));
+        )).asJSONObject();
     }
 
     /**

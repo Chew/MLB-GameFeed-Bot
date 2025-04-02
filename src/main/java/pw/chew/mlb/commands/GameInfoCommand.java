@@ -279,7 +279,7 @@ public class GameInfoCommand extends SlashCommand {
         }
 
         // get box score data
-        JSONObject data = new JSONObject(RestClient.get("https://api.chew.pro/sports/mlb/%s/boxscore".formatted(gamePk)));
+        JSONObject data = RestClient.get("https://api.chew.pro/sports/mlb/%s/boxscore".formatted(gamePk)).asJSONObject();
         GameState.TeamInfo team = homeOrAway.equals("home") ? info.home() : info.away();
 
         String title = """

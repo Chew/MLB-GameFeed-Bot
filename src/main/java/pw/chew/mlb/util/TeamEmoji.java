@@ -23,7 +23,7 @@ public record TeamEmoji(String name, String clubName, int id, Emoji emoji) {
         LoggerFactory.getLogger(TeamEmoji.class).debug("Setting up emojis...");
 
         // Retrieve Emoji from Discoed
-        JSONArray teams = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/teams?sportIds=1,11,12,13,14&season=%s&fields=teams,id,name,clubName,active".formatted(SEASON))).getJSONArray("teams");
+        JSONArray teams = RestClient.get("https://statsapi.mlb.com/api/v1/teams?sportIds=1,11,12,13,14&season=%s&fields=teams,id,name,clubName,active".formatted(SEASON)).asJSONObject().getJSONArray("teams");
         List<ApplicationEmoji> emojis = jda.retrieveApplicationEmojis().complete();
 
         // iterate through emojis

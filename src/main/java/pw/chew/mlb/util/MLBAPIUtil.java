@@ -32,7 +32,7 @@ public class MLBAPIUtil {
         if (sportsCache.getIfPresent("all") != null) {
             return sportsCache.getIfPresent("all");
         }
-        Sports sports = new Sports(new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/sports?fields=")).getJSONArray("sports"));
+        Sports sports = new Sports(RestClient.get("https://statsapi.mlb.com/api/v1/sports?fields=").asJSONObject().getJSONArray("sports"));
         sportsCache.put("all", sports);
         return sports;
     }
@@ -45,14 +45,14 @@ public class MLBAPIUtil {
         if (teamsCache.getIfPresent(sportId) != null) {
             return teamsCache.getIfPresent(sportId);
         }
-        Teams teams = new Teams(new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/teams?sportIds=%s&season=%s".formatted(sportId, SEASON))).getJSONArray("teams"));
+        Teams teams = new Teams(RestClient.get("https://statsapi.mlb.com/api/v1/teams?sportIds=%s&season=%s".formatted(sportId, SEASON)).asJSONObject().getJSONArray("teams"));
         teamsCache.put(sportId, teams);
         return teams;
     }
 
     public static Map<String, List<Player>> getLineup(String gamePk, String homeAway) {
-        JSONObject data = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1.1/game/%s/feed/live?language=en&fields=liveData,boxscore,teams,away,home,players,id,fullName,jerseyNumber,position,name,abbreviation,seasonStats,pitching,era,wins,losses,strikeOuts,batting,avg,ops,homeRuns,gameData,probablePitchers,away,home,id"
-            .formatted(gamePk)));
+        JSONObject data = RestClient.get("https://statsapi.mlb.com/api/v1.1/game/%s/feed/live?language=en&fields=liveData,boxscore,teams,away,home,players,id,fullName,jerseyNumber,position,name,abbreviation,seasonStats,pitching,era,wins,losses,strikeOuts,batting,avg,ops,homeRuns,gameData,probablePitchers,away,home,id"
+            .formatted(gamePk)).asJSONObject();
         JSONObject boxScore = data.getJSONObject("liveData")
             .getJSONObject("boxscore")
             .getJSONObject("teams");
@@ -100,7 +100,7 @@ public class MLBAPIUtil {
      * TODO: Support MiLB.
      */
     public static Map<String, List<Standing>> getStandings() {
-        JSONArray standings = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/standings?leagueId=103,104&hydrate=division&season=%s".formatted(SEASON))).getJSONArray("records");
+        JSONArray standings = RestClient.get("https://statsapi.mlb.com/api/v1/standings?leagueId=103,104&hydrate=division&season=%s".formatted(SEASON)).asJSONObject().getJSONArray("records");
         HashMap<String, List<Standing>> standingsMap = new HashMap<>();
         for (int i = 0; i < standings.length(); i++) {
             JSONObject division = standings.getJSONObject(i);
