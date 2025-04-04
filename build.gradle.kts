@@ -1,7 +1,7 @@
 plugins {
     id("java")
     application
-    kotlin("jvm") version "1.9.25"
+    kotlin("jvm") version "2.1.20"
 }
 
 group = "pw.chew"
@@ -25,7 +25,7 @@ dependencies {
     implementation("ch.qos.logback", "logback-classic", "1.5.6")
     implementation("mysql", "mysql-connector-java", "8.0.33")
     implementation("org.mapdb", "mapdb", "3.1.0")
-    implementation("org.hibernate", "hibernate-core", "5.6.15.Final")
+    implementation("org.hibernate", "hibernate-core", "6.6.12.Final")
     implementation("com.github.ben-manes.caffeine", "caffeine", "3.1.8")
 
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.3")
