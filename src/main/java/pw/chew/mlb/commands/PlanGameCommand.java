@@ -10,6 +10,7 @@ import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
+import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.InteractionHook;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
@@ -33,6 +34,7 @@ public class PlanGameCommand extends SlashCommand {
     public PlanGameCommand() {
         this.name = "plangame";
         this.help = "Plans a game to be played. Makes a thread in text channels or a post in forum channels.";
+        this.contexts = new InteractionContextType[]{InteractionContextType.GUILD};
         this.descriptionLocalization = Map.of(
             DiscordLocale.ENGLISH_US, "Plans a game to be played. Makes a thread in text channels or a post in forum channels.",
             DiscordLocale.SPANISH, "Planifica un juego para ser jugado."

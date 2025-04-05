@@ -20,7 +20,8 @@ import static pw.chew.mlb.commands.PlanGameCommand.cleanDuplicates;
 
 public record GameBlurb(String gamePk, JSONObject data) {
     public GameBlurb(String gamePk) {
-        this(gamePk, new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/schedule?language=en&gamePk=%s&hydrate=broadcasts(all),gameInfo,team,probablePitcher(all)&useLatestGames=true&fields=dates,date,games,gameDate,teams,away,probablePitcher,fullName,team,teamName,id,name,leagueRecord,wins,losses,pct,home,venue,name,broadcasts,type,name,homeAway,isNational,callSign".formatted(gamePk)))
+        this(gamePk, RestClient.get("https://statsapi.mlb.com/api/v1/schedule?language=en&gamePk=%s&hydrate=broadcasts(all),gameInfo,team,probablePitcher(all)&useLatestGames=true&fields=dates,date,games,gameDate,teams,away,probablePitcher,fullName,team,teamName,id,name,leagueRecord,wins,losses,pct,home,venue,name,broadcasts,type,name,homeAway,isNational,callSign".formatted(gamePk))
+            .asJSONObject()
             .getJSONArray("dates")
             .getJSONObject(0)
             .getJSONArray("games")

@@ -19,10 +19,10 @@ repositories {
 }
 
 dependencies {
-    implementation("net.dv8tion", "JDA", "5.2.2")
-    implementation("pw.chew", "jda-chewtils", "2.0")
-    implementation("org.json", "json", "20240303")
-    implementation("ch.qos.logback", "logback-classic", "1.5.16")
+    implementation("net.dv8tion", "JDA", "5.3.1")
+    implementation("pw.chew", "jda-chewtils", "2.1")
+    implementation("org.json", "json", "20250107")
+    implementation("ch.qos.logback", "logback-classic", "1.5.6")
     implementation("mysql", "mysql-connector-java", "8.0.33")
     implementation("org.mapdb", "mapdb", "3.1.0")
     implementation("org.hibernate", "hibernate-core", "5.6.15.Final")

@@ -3,6 +3,7 @@ package pw.chew.mlb.commands;
 import com.jagrosh.jdautilities.command.SlashCommand;
 import com.jagrosh.jdautilities.command.SlashCommandEvent;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
+import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.components.buttons.Button;
 import net.dv8tion.jda.internal.utils.Checks;
 import pw.chew.mlb.listeners.GameFeedHandler;
@@ -15,6 +16,7 @@ public class ScoreCommand extends SlashCommand {
     public ScoreCommand() {
         this.name = "score";
         this.help = "Shows the score and match-ups of the current game";
+        this.contexts = new InteractionContextType[]{InteractionContextType.GUILD};
         this.descriptionLocalization = Map.of(
             DiscordLocale.ENGLISH_US, "Shows the score and match-ups of the current game",
             DiscordLocale.SPANISH, "Muestra la puntuación y los enfrentamientos del juego actual"

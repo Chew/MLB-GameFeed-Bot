@@ -4,6 +4,7 @@ import com.jagrosh.jdautilities.command.SlashCommand;
 import com.jagrosh.jdautilities.command.SlashCommandEvent;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
+import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.utils.TimeFormat;
 import pw.chew.mlb.listeners.GameFeedHandler;
 import pw.chew.mlb.objects.GameState;
@@ -21,7 +22,7 @@ public class StopGameCommand extends SlashCommand {
             DiscordLocale.SPANISH, "Detiene un juego en el canal actual"
         );
 
-        this.guildOnly = true;
+        this.contexts = new InteractionContextType[]{InteractionContextType.GUILD};
     }
 
     @Override
