@@ -14,6 +14,7 @@ import pw.chew.chewbotcca.util.DatabaseHelper;
 import pw.chew.chewbotcca.util.RestClient;
 import pw.chew.mlb.commands.AdminCommand;
 import pw.chew.mlb.commands.ConfigCommand;
+import pw.chew.mlb.commands.GameInfoCommand;
 import pw.chew.mlb.commands.PlanGameCommand;
 import pw.chew.mlb.commands.ScoreCommand;
 import pw.chew.mlb.commands.SetInfoCommand;
@@ -38,7 +39,7 @@ public class MLBBot {
     public static final List<JSONObject> TEAMS = new ArrayList<>();
     public static final EventWaiter waiter = new EventWaiter();
 
-    public static final int SEASON = 2024;
+    public static final int SEASON = 2025;
 
     public static void main(String[] args) throws IOException {
         // Load properties into the PropertiesManager
@@ -54,7 +55,7 @@ public class MLBBot {
         CommandClientBuilder client = new CommandClientBuilder();
 
         // Set the client settings
-        client.setActivity(Activity.watching("the 2024 season!"));
+        client.setActivity(Activity.watching("the regular season!"));
         client.setOwnerId(prop.getProperty("userId", "476488167042580481"));
         client.setPrefix("woody!");
 
@@ -65,8 +66,8 @@ public class MLBBot {
             // Main commands
             new StartGameCommand(), new StopGameCommand(), new ScoreCommand(), new SetInfoCommand(), new ConfigCommand(),
             new PlanGameCommand()
-            , // Util Commands
-            new StandingsCommand(), new TeamCommand()
+            , // Stats Commands
+            new StandingsCommand(), new GameInfoCommand(), new TeamCommand()
         );
 
         //client.forceGuildOnly("148195924567392257");
@@ -84,10 +85,8 @@ public class MLBBot {
                 , new InteractionHandler()
             ).build();
 
-        RestClient.setClient(jda.getHttpClient());
-
         // Load teams
-        JSONObject teams = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/teams?sportIds=1&season=" + SEASON));
+        JSONObject teams = RestClient.get("https://statsapi.mlb.com/api/v1/teams?sportIds=1&season=" + SEASON).asJSONObject();
 
         for (int i = 0; i < teams.getJSONArray("teams").length(); i++) {
             TEAMS.add(teams.getJSONArray("teams").getJSONObject(i));

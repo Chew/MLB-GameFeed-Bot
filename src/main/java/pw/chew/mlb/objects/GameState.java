@@ -1,11 +1,13 @@
 package pw.chew.mlb.objects;
 
+import net.dv8tion.jda.api.utils.TimeFormat;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.slf4j.LoggerFactory;
+import pw.chew.chewbotcca.util.MiscUtil;
 import pw.chew.chewbotcca.util.RestClient;
 
 import java.time.OffsetDateTime;
@@ -17,8 +19,9 @@ import java.util.List;
  * Wrapper around MLB's game data to make it easier to access.
  *
  * @param gameData The game data from the MLB API
+ * @param gamePk The gamePk of the game
  */
-public record GameState(JSONObject gameData) {
+public record GameState(JSONObject gameData, String gamePk) {
     /**
      * Retrieves the latest game data for the provided game PK (ID)
      *
@@ -27,16 +30,16 @@ public record GameState(JSONObject gameData) {
      */
     @NotNull
     public static GameState fromPk(String gamePk) {
-        String res = RestClient.get("https://statsapi.mlb.com/api/v1.1/game/:id/feed/live?language=en&fields=gameData,game,pk,datetime,dateTime,status,detailedState,abstractGameState,liveData,plays,allPlays,result,description,awayScore,homeScore,event,about,isComplete,count,balls,strikes,outs,playEvents,details,isInPlay,isScoringPlay,description,event,eventType,hitData,launchSpeed,launchAngle,totalDistance,trajectory,hardness,isPitch,atBatIndex,playId,currentPlay,count,outs,matchup,batter,fullName,pitcher,fullName,postOnFirst,fullName,postOnSecond,postOnThird,fullName,linescore,currentInning,currentInningOrdinal,inningState,linescore,teams,home,name,clubName,abbreviation,runs,away,runs,innings,num,home,runs,away,runs,teams,home,runs,hits,errors,leftOnBase,away,runs,hits,errors,leftOnBase,decisions,winner,fullName,id,loser,save,boxscore,teams,away,home,players,stats,pitching,note"
-            .replace(":id", gamePk));
+        String res = RestClient.get("https://statsapi.mlb.com/api/v1.1/game/:id/feed/live?language=en&fields=gameData,venue,fieldInfo,capacity,weather,condition,temp,wind,gameInfo,attendance,game,pk,datetime,dateTime,status,detailedState,abstractGameState,liveData,plays,allPlays,result,rbi,description,awayScore,homeScore,event,about,inning,isTopInning,isComplete,count,balls,strikes,outs,playEvents,details,isInPlay,isScoringPlay,eventType,hitData,launchSpeed,launchAngle,totalDistance,trajectory,hardness,isPitch,atBatIndex,playId,currentPlay,scoringPlays,matchup,batter,fullName,pitcher,postOnFirst,postOnSecond,postOnThird,linescore,currentInning,currentInningOrdinal,inningState,teams,home,name,clubName,abbreviation,runs,away,innings,num,hits,errors,leftOnBase,decisions,winner,id,loser,save,boxscore,players,stats,pitching,note"
+            .replace(":id", gamePk)).asString();
 
         try {
             JSONObject json = new JSONObject(res);
 
-            return new GameState(json);
+            return new GameState(json, gamePk);
         } catch (JSONException e) {
             LoggerFactory.getLogger(GameState.class).error("Failed to parse game data (error: {}): {}", e, res);
-            return new GameState(new JSONObject());
+            return new GameState(new JSONObject(), gamePk);
         }
     }
 
@@ -67,6 +70,17 @@ public record GameState(JSONObject gameData) {
     }
 
     /**
+     * Check if a game is scheduled (or in pre-game).
+     * The game is scheduled, but hasn't started or been postponed/canceled.
+     *
+     * @return true if the game is canceled, false otherwise
+     */
+    public boolean isScheduled() {
+        String detailedState = gameData().getJSONObject("gameData").getJSONObject("status").getString("detailedState");
+        return detailedState.contains("Pre-Game") || detailedState.contains("Scheduled");
+    }
+
+    /**
      * Check if a game is canceled.
      * Only minor league and spring training games get canceled, postponement is not true for this method.
      *
@@ -76,8 +90,24 @@ public record GameState(JSONObject gameData) {
         return gameData().getJSONObject("gameData").getJSONObject("status").getString("detailedState").equals("Cancelled");
     }
 
+    /**
+     * Check if a game is suspended.
+     * A game suspension usually means we don't know when or if the game will be resumed.
+     *
+     * @return true if the game is suspended, false otherwise
+     */
     public boolean isSuspended() {
         return gameData().getJSONObject("gameData").getJSONObject("status").getString("detailedState").contains("Suspended");
+    }
+
+    /**
+     * Check if a game is postponed.
+     * Typically, postponements have a rescheduled date. But, we don't care about that here.
+     *
+     * @return true if the game is postponed, false otherwise
+     */
+    public boolean isPostponed() {
+        return gameData().getJSONObject("gameData").getJSONObject("status").getString("detailedState").contains("Postponed");
     }
 
     /**
@@ -124,6 +154,15 @@ public record GameState(JSONObject gameData) {
     }
 
     /**
+     * Returns the date from {@link #officialDate()} as Month Day, Year
+     *
+     * @return the date as Month Day, Year
+     */
+    public String friendlyDate() {
+        return officialDate().format(DateTimeFormatter.ofPattern("MMMM d, uuuu"));
+    }
+
+    /**
      * The current inning of the game.
      *
      * @return The current inning of the game
@@ -166,6 +205,22 @@ public record GameState(JSONObject gameData) {
      */
     public JSONObject currentPlay() {
         return gameData.getJSONObject("liveData").getJSONObject("plays").getJSONObject("currentPlay");
+    }
+
+    /**
+     * Returns a list of all scoring plays for this game.
+     *
+     * @return a list of all scoring plays for this game
+     */
+    public List<JSONObject> scoringPlays() {
+        List<Integer> scoringPlays = MiscUtil.toList(gameData().getJSONObject("liveData").getJSONObject("plays").getJSONArray("scoringPlays"), Integer.class);
+
+        List<JSONObject> plays = new ArrayList<>();
+        for (int playIndex : scoringPlays) {
+            plays.add(plays().getJSONObject(playIndex));
+        }
+
+        return plays;
     }
 
     /**
@@ -344,9 +399,9 @@ public record GameState(JSONObject gameData) {
 
         String playId = hitData.getString("playId");
 
-        return new JSONObject(RestClient.get("https://baseballsavant.mlb.com/gamefeed/x-parks/%s/%s?".formatted(
+        return RestClient.get("https://baseballsavant.mlb.com/gamefeed/x-parks/%s/%s?".formatted(
             gameData().getJSONObject("gameData").getJSONObject("game").getInt("pk"), playId
-        )));
+        )).asJSONObject();
     }
 
     /**
@@ -530,7 +585,7 @@ public record GameState(JSONObject gameData) {
                 player = homePlayers.getJSONObject("ID" + id);
             }
 
-            String note = player.getJSONObject("stats").getJSONObject("pitching").getString("note");
+            String note = player.getJSONObject("stats").getJSONObject("pitching").optString("note");
 
             // Capitalize the key
             String keyCapitalized = key.substring(0, 1).toUpperCase() + key.substring(1);
@@ -548,6 +603,10 @@ public record GameState(JSONObject gameData) {
      * @return the summary of the game
      */
     public String summary() {
+        if (isScheduled()) {
+            return "The game is scheduled to start at %s.".formatted(TimeFormat.DATE_TIME_SHORT.format(officialDate()));
+        }
+
         int homeRuns = home().runs();
         int awayRuns = away().runs();
 
@@ -571,6 +630,68 @@ public record GameState(JSONObject gameData) {
                 return "The %s are leading the %s, %s in %s.".formatted(winning, losing, score, currentInning);
             }
         }
+    }
+
+    /**
+     * Return the attendance for this game. Or -1, if there is no information yet.
+     *
+     * @return never-null attendance, -1 if not available
+     */
+    public int attendance() {
+        return gameData.getJSONObject("gameData").getJSONObject("gameInfo").optInt("attendance", -1);
+    }
+
+    /**
+     * Returns a friendly string for the attendance
+     *
+     * @return
+     */
+    public String friendlyAttendance() {
+        int attendance = attendance();
+
+        if (isFinal() && attendance == -1) {
+            return "Not Reported";
+        } else if (attendance == -1) {
+            return "Not Yet Reported";
+        } else {
+            return MiscUtil.delimitNumber(attendance);
+        }
+    }
+
+    /**
+     * Shows the weather for this game, if available
+     *
+     * @return
+     */
+    public String weather() {
+        JSONObject weatherInfo = gameData.getJSONObject("gameData").getJSONObject("weather");
+        if (weatherInfo.isEmpty()) {
+            return "No Information Available";
+        }
+
+        String condition = weatherInfo.getString("condition");
+        String conditionEmoji = switch (condition) {
+            case "Clear", "Sunny" -> "☀️";
+            case "Cloudy" -> "☁️";
+            case "Drizzle" -> "⛈️";
+            case "Overcast" -> "🌥️";
+            case "Partly Cloudy" -> "⛅";
+            case "Rain" -> "🌧️";
+            case "Snow" -> "🌨️";
+            default -> "";
+        };
+
+        int tempF = weatherInfo.getInt("temp");
+        double tempC = Math.round((tempF - 32) * 5.0 / 9.0 * 10) / 10.0;
+        String temperature = "%s ºF (%s ºC)".formatted(tempF, tempC);
+
+        String wind = weatherInfo.getString("wind");
+
+        return """
+            Condition: %s %s
+            Temp: %s
+            Wind: %s
+            """.formatted(conditionEmoji, condition, temperature, wind);
     }
 
     /**

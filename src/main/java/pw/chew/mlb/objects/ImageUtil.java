@@ -2,10 +2,13 @@ package pw.chew.mlb.objects;
 
 import net.dv8tion.jda.api.entities.Icon;
 import net.dv8tion.jda.api.utils.FileUpload;
+import pw.chew.mlb.commands.GameInfoCommand;
 
 import javax.imageio.ImageIO;
 import java.awt.Color;
+import java.awt.Font;
 import java.awt.Graphics;
+import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.MediaTracker;
 import java.awt.Toolkit;
@@ -25,7 +28,7 @@ public class ImageUtil {
      * @param homeId the home team ID
      * @return a FileUpload of the banner
      */
-    public static MatchUpBanner matchUpBanner(int awayId, int homeId) {
+    public static GeneratedImage matchUpBanner(int awayId, int homeId) {
         Graphics g;
 
         BufferedImage image = new BufferedImage(1600, 640, BufferedImage.TYPE_INT_RGB);
@@ -89,14 +92,103 @@ public class ImageUtil {
             ImageIO.write(image, "png", os);
             InputStream is = new ByteArrayInputStream(os.toByteArray());
 
-            return new MatchUpBanner(is);
+            return new GeneratedImage(is);
         } catch (IOException e) {
             e.printStackTrace();
             return null;
         }
     }
 
-    public record MatchUpBanner(InputStream stream) {
+    /**
+     * Converts a table (2D Array) of data into an image.
+     *
+     * @param data the data to convert
+     * @param set the data set to use. pulls headers and widths.
+     * @return a GeneratedImage object
+     */
+    public static GeneratedImage createTable(String[][] data, GameInfoCommand.BoxScoreDataSets set) {
+        // set widths per column
+        int[] cellWidths = set.columnWidths();
+        int currentWidth = 0;
+        int totalWidth = set.totalWidth();
+
+        // set cell height and padding
+        int cellHeight = 30;
+        int padding = 5;
+
+        // calculate final image size
+        int imageWidth = (data[0].length * (totalWidth / set.length()) + padding * (data[0].length + 1)) + 10;
+        int imageHeight = data.length * cellHeight + padding * (data.length + 1);
+
+        // create image and graphics
+        BufferedImage image = new BufferedImage(imageWidth, imageHeight, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2d = image.createGraphics();
+
+        // set background color to #141A1F
+        g2d.setColor(new Color(0x141A1F));
+        g2d.fillRect(0, 0, imageWidth, imageHeight);
+
+        // Set font to MLB font
+        Font font = new Font("Proxima Nova", Font.PLAIN, 14);
+        g2d.setFont(font);
+
+        // iterate through data and write it onto the image
+        for (int row = 0; row < data.length; row++) {
+            boolean lastRow = data[row][0].equals("Totals");
+            if (lastRow || row == 0) {
+                // make font bold
+                g2d.setFont(new Font("Proxima Nova", Font.BOLD, 14));
+            } else {
+                // make font normal
+                g2d.setFont(font);
+            }
+            for (int col = 0; col < data[row].length; col++) {
+                // determine where to put it
+                int x = col + currentWidth + (col + 1) * padding;
+                int y = row * cellHeight + (row + 1) * padding;
+
+                g2d.setColor(Color.WHITE);
+
+                // first column is left aligned
+                if (col == 0) {
+                    g2d.drawString(data[row][col], x + padding, y + cellHeight - padding - 2);
+                } else { // the rest are centered
+                    g2d.drawString(data[row][col], x + (cellWidths[col] - g2d.getFontMetrics().stringWidth(data[row][col])) / 2, y + cellHeight - padding - 2);
+                }
+
+                // set the width of the cell
+                currentWidth += cellWidths[col];
+            }
+            // set width back to 0
+            currentWidth = 0;
+        }
+
+        // add a border-line between the 1st and 2nd row
+        g2d.setColor(new Color(0x263340));
+        g2d.drawLine(0, cellHeight + padding, imageWidth, cellHeight + padding);
+
+        // we're done with the image
+        g2d.dispose();
+
+        // Convert BufferedImage to InputStream
+        ByteArrayOutputStream os = new ByteArrayOutputStream();
+        try {
+            ImageIO.write(image, "png", os);
+            InputStream is = new ByteArrayInputStream(os.toByteArray());
+
+            // return generated image
+            return new GeneratedImage(is);
+        } catch (IOException e) {
+            e.printStackTrace();
+            return new GeneratedImage(null);
+        }
+    }
+
+    public record GeneratedImage(InputStream stream) {
+        public boolean failed() {
+            return stream == null;
+        }
+
         public FileUpload asFileUpload() {
             return FileUpload.fromData(stream, "image.png");
         }

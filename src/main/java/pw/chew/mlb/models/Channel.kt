@@ -42,16 +42,6 @@ open class Channel {
     @Column(name = "showScoreOnOut3")
     open var showScoreOnOut3: Boolean = true
 
-    fun setBoolean(info: String, newValue: Boolean) {
-        // Dynamically call the method based on the info
-        this.javaClass.getMethod("set${info}", Boolean::class.java).invoke(this, newValue)
-    }
-
-    fun setInt(info: String, newValue: Int) {
-        // Dynamically call the method based on the info
-        this.javaClass.getMethod("set${info}", Int::class.java).invoke(this, newValue)
-    }
-
     fun get(info: String) {
         // Dynamically call the method based on the info
         this.javaClass.getMethod("get${info}").invoke(this)

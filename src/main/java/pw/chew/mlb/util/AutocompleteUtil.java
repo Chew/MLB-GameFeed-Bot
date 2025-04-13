@@ -91,7 +91,8 @@ public class AutocompleteUtil {
             return List.of(new Command.Choice("Please select a team first!", -1));
         }
 
-        JSONArray games = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/schedule?lang=en&sportId=%S&season=%s&teamId=%S&fields=dates,date,games,gamePk,teams,away,team,teamName,id&hydrate=team".formatted(sportId, SEASON, teamId)))
+        JSONArray games = RestClient.get("https://statsapi.mlb.com/api/v1/schedule?lang=en&sportId=%S&season=%s&teamId=%S&fields=dates,date,games,gamePk,teams,away,team,teamName,id&hydrate=team".formatted(sportId, SEASON, teamId))
+            .asJSONObject()
             .getJSONArray("dates");
 
         List<Command.Choice> choices = new ArrayList<>();
@@ -149,7 +150,7 @@ public class AutocompleteUtil {
         String today = OffsetDateTime.now(NEW_YORK.toZoneId()).format(DateTimeFormatter.ofPattern("MM/dd/yyyy"));
 
         // Retrieve the current games
-        JSONObject gameResponse = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/schedule?language=en&sportId=1&date=" + today + "&hydrate=game,flags,team"));
+        JSONObject gameResponse = RestClient.get("https://statsapi.mlb.com/api/v1/schedule?language=en&sportId=1&date=" + today + "&hydrate=game,flags,team").asJSONObject();
 
         // Build games
         List<Command.Choice> choices = new ArrayList<>();

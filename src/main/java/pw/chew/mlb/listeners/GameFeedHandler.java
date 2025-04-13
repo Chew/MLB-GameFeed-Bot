@@ -254,7 +254,7 @@ public class GameFeedHandler {
                 return;
             }
 
-            if (recentState.isSuspended()) {
+            if (recentState.isSuspended() || recentState.isPostponed()) {
                 endGame(gamePk, recentState, "\nUnfortunately, this game has been suspended. It will resume at a later time.");
                 return;
             }
@@ -569,7 +569,7 @@ public class GameFeedHandler {
                     ## Final Scorecard
                     %s
                     """.formatted(currentState.summary(), currentState.decisions(), scorecard))
-                    .setActionRow(Button.link("https://mlb.chew.pw/game/" + gamePk, "View Game"))
+                    .setActionRow(Button.primary("gameinfo:send:%s".formatted(currentState.gamePk()), "View Game Info"))
                     .queue();
             } catch (InsufficientPermissionException ignored) {
                 logger.debug("Insufficient permissions to send message to channel " + game.channelId());

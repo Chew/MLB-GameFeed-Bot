@@ -7,6 +7,7 @@ import net.dv8tion.jda.api.entities.channel.ChannelType;
 import net.dv8tion.jda.api.entities.channel.concrete.VoiceChannel;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
+import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.commands.Command;
 import net.dv8tion.jda.api.interactions.commands.OptionMapping;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
@@ -36,7 +37,7 @@ public class SetInfoCommand extends SlashCommand {
             DiscordLocale.SPANISH, "Establece el nombre de un canal de voz en una pieza de información especificada."
         );
 
-        this.guildOnly = true;
+        this.contexts = new InteractionContextType[]{InteractionContextType.GUILD};
         this.userPermissions = new Permission[]{Permission.MANAGE_CHANNEL};
         this.botPermissions = new Permission[]{Permission.MANAGE_CHANNEL};
 
@@ -88,7 +89,7 @@ public class SetInfoCommand extends SlashCommand {
                     divisionAbbreviation += word.substring(0, 1);
                 }
 
-                JSONObject standings = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/standings?leagueId=103,104&standingsTypes=regularSeason&season=" + SEASON));
+                JSONObject standings = RestClient.get("https://statsapi.mlb.com/api/v1/standings?leagueId=103,104&standingsTypes=regularSeason&season=" + SEASON).asJSONObject();
 
                 // Gotta find the team now...
                 JSONArray records = standings.getJSONArray("records");
@@ -123,7 +124,7 @@ public class SetInfoCommand extends SlashCommand {
             case "nextgame" -> {
                 int teamId = teamInfo.getInt("id");
 
-                JSONObject teamSchedule = new JSONObject(RestClient.get(String.format("https://statsapi.mlb.com/api/v1/teams/%s?season=%s&hydrate=nextSchedule", teamId, SEASON)));
+                JSONObject teamSchedule = RestClient.get(String.format("https://statsapi.mlb.com/api/v1/teams/%s?season=%s&hydrate=nextSchedule", teamId, SEASON)).asJSONObject();
 
                 JSONObject nextGame = null;
 
