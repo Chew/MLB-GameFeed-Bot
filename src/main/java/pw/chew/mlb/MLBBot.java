@@ -16,6 +16,7 @@ import pw.chew.mlb.commands.AdminCommand;
 import pw.chew.mlb.commands.ConfigCommand;
 import pw.chew.mlb.commands.GameInfoCommand;
 import pw.chew.mlb.commands.PlanGameCommand;
+import pw.chew.mlb.commands.PlayerCommand;
 import pw.chew.mlb.commands.ScoreCommand;
 import pw.chew.mlb.commands.SetInfoCommand;
 import pw.chew.mlb.commands.StandingsCommand;
@@ -66,7 +67,7 @@ public class MLBBot {
             new StartGameCommand(), new StopGameCommand(), new ScoreCommand(), new SetInfoCommand(), new ConfigCommand(),
             new PlanGameCommand()
             , // Stats Commands
-            new StandingsCommand(), new GameInfoCommand()
+            new StandingsCommand(), new GameInfoCommand(), new PlayerCommand()
         );
 
         //client.forceGuildOnly("148195924567392257");
