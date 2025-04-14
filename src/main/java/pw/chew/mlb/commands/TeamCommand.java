@@ -8,6 +8,7 @@ import net.dv8tion.jda.api.entities.emoji.Emoji;
 import net.dv8tion.jda.api.events.interaction.command.CommandAutoCompleteInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.ButtonInteractionEvent;
 import net.dv8tion.jda.api.events.interaction.component.StringSelectInteractionEvent;
+import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import net.dv8tion.jda.api.interactions.components.ActionRow;
@@ -16,6 +17,7 @@ import net.dv8tion.jda.api.interactions.components.selections.SelectOption;
 import net.dv8tion.jda.api.interactions.components.selections.StringSelectMenu;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import pw.chew.chewbotcca.util.MiscUtil;
 import pw.chew.chewbotcca.util.RestClient;
 import pw.chew.mlb.util.AutocompleteUtil;
 import pw.chew.mlb.util.MLBAPIUtil;
@@ -23,7 +25,10 @@ import pw.chew.mlb.util.TeamEmoji;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static pw.chew.mlb.MLBBot.SEASON;
 
@@ -31,12 +36,16 @@ public class TeamCommand extends SlashCommand {
     public TeamCommand() {
         this.name = "team";
         this.help = "Get information about a team.";
-        this.guildOnly = false;
         this.options = List.of(
             new OptionData(OptionType.STRING, "team", "Type to search for a team!", true, true)
         );
 
-        // TODO: Future, make this installable in user contexts
+        // Installable everywhere, since info and always ephemeral
+        this.contexts = new InteractionContextType[]{
+            InteractionContextType.GUILD,
+            InteractionContextType.BOT_DM,
+            InteractionContextType.PRIVATE_CHANNEL
+        };
     }
 
     @Override
@@ -115,8 +124,73 @@ public class TeamCommand extends SlashCommand {
     }
 
     private static MessageEmbed handleRosterEmbed(String teamId) {
-        return new EmbedBuilder()
-            .build();
+        // get roster
+        JSONObject roster = RestClient.get("https://statsapi.mlb.com/api/v1/teams/%s/roster?rosterType=depthChart&season=2025&fields=roster,person,primaryNumber,fullName,position,name,type,status,code,description"
+            .formatted(teamId)).asJSONObject();
+
+        Map<String, List<String>> players = new LinkedHashMap<>();
+        players.put("Starting Pitcher", new ArrayList<>());
+        players.put("Infielder", new ArrayList<>());
+        players.put("Outfielder", new ArrayList<>());
+        players.put("Bullpen", new ArrayList<>());
+        players.put("Catcher", new ArrayList<>());
+        players.put("Designated Hitter", new ArrayList<>());
+
+        for (JSONObject player : MiscUtil.toList(roster.getJSONArray("roster"), JSONObject.class)) {
+            JSONObject position = player.getJSONObject("position");
+            String name = player.getJSONObject("person").getString("fullName");
+            switch (player.getJSONObject("status").getString("code")) {
+                case "D60":
+                case "RM":
+                    // skip this player entirely
+                    break;
+                case "D10":
+                case "D15":
+                    // append injury emoji to end of name
+                    name += " " + "+"; // TODO: Replace with actual injury emoji
+                case "A":
+                    // time to get ready
+                    switch (position.getString("type")) {
+                        case "Catcher", "Infielder", "Outfielder" -> {
+                            players.get(position.getString("type")).add(name);
+                        }
+                        case "Pitcher" -> {
+                            if (position.getString("name").equals("Starting Pitcher")) {
+                                players.get("Starting Pitcher").add(name);
+                            } else {
+                                players.get("Bullpen").add(name);
+                            }
+                        }
+                        case "Hitter" -> {
+                            players.get("Designated Hitter").add(name);
+                        }
+                    }
+            }
+        }
+
+
+
+        EmbedBuilder embed = new EmbedBuilder()
+            .setTitle("Roster")
+            .setDescription("Only shows active roster.");
+
+        for (Map.Entry<String, List<String>> entry : players.entrySet()) {
+            String position = entry.getKey();
+            List<String> playerList = entry.getValue();
+
+            if (playerList.isEmpty()) {
+                continue;
+            }
+
+            StringBuilder sb = new StringBuilder();
+            for (String player : playerList) {
+                sb.append(player).append("\n");
+            }
+
+            embed.addField(position + (position.equals("Bullpen") ? "" : "s"), sb.toString(), true);
+        }
+
+        return embed.build();
     }
 
     private static MessageEmbed handleTransactionsEmbed(String teamId) {
@@ -125,8 +199,8 @@ public class TeamCommand extends SlashCommand {
     }
 
     private static MessageEmbed handleScheduleEmbed(String teamId) {
-        JSONObject data = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/teams/%s?season=%s&hydrate=previousSchedule,nextSchedule"
-            .formatted(teamId, SEASON))).getJSONArray("teams").getJSONObject(0);
+        JSONObject data = RestClient.get("https://statsapi.mlb.com/api/v1/teams/%s?season=%s&hydrate=previousSchedule,nextSchedule"
+            .formatted(teamId, SEASON)).asJSONObject().getJSONArray("teams").getJSONObject(0);
 
         List<MLBAPIUtil.Game> games = new ArrayList<>();
         List<Integer> gamePks = new ArrayList<>();
@@ -143,8 +217,8 @@ public class TeamCommand extends SlashCommand {
         }
 
         // now we get games cus mlb is silly :3
-        JSONObject gameData = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/schedule?language=en&gamePks=%s&useLatestGames=true&hydrate=team"
-            .formatted(gamePks.stream().distinct().map(String::valueOf).reduce((a, b) -> a + "," + b).orElse(""))));
+        JSONObject gameData = RestClient.get("https://statsapi.mlb.com/api/v1/schedule?language=en&gamePks=%s&useLatestGames=true&hydrate=team"
+            .formatted(gamePks.stream().distinct().map(String::valueOf).reduce((a, b) -> a + "," + b).orElse(""))).asJSONObject();
 
         // now we do the wrapping
         JSONArray gameDates = gameData.getJSONArray("dates");

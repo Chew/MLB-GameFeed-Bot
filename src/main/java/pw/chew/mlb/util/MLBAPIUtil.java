@@ -99,8 +99,8 @@ public class MLBAPIUtil {
     }
 
     public static List<Affiliate> getAffiliates(String teamId) {
-        JSONArray affiliates = new JSONObject(RestClient.get("https://statsapi.mlb.com/api/v1/teams/affiliates?teamIds=%s&season=%s&hydrate=standings,sport&fields=teams,name,id,venue,name,league,division,sport,abbreviation,sortOrder,record,wins,losses,winningPercentage,active"
-            .formatted(teamId, SEASON))).getJSONArray("teams");
+        JSONArray affiliates = RestClient.get("https://statsapi.mlb.com/api/v1/teams/affiliates?teamIds=%s&season=%s&hydrate=standings,sport&fields=teams,name,id,venue,name,league,division,sport,abbreviation,sortOrder,record,wins,losses,winningPercentage,active"
+            .formatted(teamId, SEASON)).asJSONObject().getJSONArray("teams");
 
         // wrap each array item as an affiliate object
         List<Affiliate> affiliatesList = new ArrayList<>();

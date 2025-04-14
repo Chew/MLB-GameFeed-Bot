@@ -95,18 +95,9 @@ public class InteractionHandler extends ListenerAdapter {
         String type = parts[0];
 
         // Future proofing
-        //noinspection SwitchStatementWithTooFewBranches
         switch (type) {
-            case "gameinfo" -> {
-                GameInfoCommand.handleSelectMenu(event);
-            }
-        }
-    }
-
-    @Override
-    public void onStringSelectInteraction(@NotNull StringSelectInteractionEvent event) {
-        if (event.getComponentId().startsWith("team:")) {
-            TeamCommand.handleSelect(event);
+            case "gameinfo" -> GameInfoCommand.handleSelectMenu(event);
+            case "team" -> TeamCommand.handleSelect(event);
         }
     }
 }
