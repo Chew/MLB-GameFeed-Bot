@@ -5,6 +5,8 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.ScheduledEvent;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
@@ -573,6 +575,30 @@ public class GameFeedHandler {
                     .queue();
             } catch (InsufficientPermissionException ignored) {
                 logger.debug("Insufficient permissions to send message to channel " + game.channelId());
+            }
+
+            // Check for scheduled game and end it, game is over
+            List<ScheduledEvent> events = channel.getGuild().getScheduledEvents();
+            for (ScheduledEvent event : events) {
+                User creator = event.getCreator();
+                // If no creator, skip
+                if (creator == null) continue;
+                // If not us, skip
+                if (!creator.getId().equals(jda.getSelfUser().getId())) continue;
+
+                // Get description
+                String description = event.getDescription();
+                // If no description, skip
+                if (description == null) continue;
+                // Game link is at very end
+                String id = description.split("/")[description.split("/").length - 1];
+
+                // If we can't do anything, skip
+                if (!channel.getGuild().getSelfMember().hasPermission(Permission.MANAGE_EVENTS)) continue;
+
+                if (id.equals(gamePk)) {
+                    event.delete().queue();
+                }
             }
         }
 
