@@ -50,7 +50,6 @@ public class ScheduleCommand extends SlashCommand {
     }
 
     public class ScheduleCreateSubcommand extends SlashCommand {
-
         public ScheduleCreateSubcommand() {
             this.name = "create";
             this.help = "Sets up a schedule channel.";
@@ -105,26 +104,8 @@ public class ScheduleCommand extends SlashCommand {
                     return;
                 }
 
-                event.deferReply(true).queue(interactionHook -> setupChannel(interactionHook, channel.asTextChannel(), teamId, sportId));
+                event.deferReply(true).queue(hook -> setupChannel(hook, channel.asTextChannel(), teamId, sportId));
             }
-        }
-
-        private void setupChannel(InteractionHook hook, TextChannel channel, long teamId, long sportId) {
-            // get tge schedule for the team
-
-            var embeds = buildScheduleEmbed((int) teamId, String.valueOf(sportId));
-
-            // send the embeds one by one, synchronously
-            new Thread(() -> {
-                for (MessageEmbed embed : embeds) {
-                    channel.sendMessageEmbeds(embed).complete();
-                }
-
-                hook.editOriginal("Schedule set up!").queue();
-
-                // exit thread
-                Thread.currentThread().interrupt();
-            }).start();
         }
 
         @Override
@@ -149,7 +130,6 @@ public class ScheduleCommand extends SlashCommand {
     }
 
     public static class ScheduleUpdateSubcommand extends SlashCommand {
-
         public ScheduleUpdateSubcommand() {
             this.name = "update";
             this.help = "Updates an existing schedule.";
@@ -161,6 +141,46 @@ public class ScheduleCommand extends SlashCommand {
         }
     }
 
+    /**
+     * Sets up the channel with the schedule information for a specified team and sport. The method
+     * retrieves the schedule, builds the corresponding message embeds, and sends them synchronously
+     * to the provided text channel. After all embeds are sent, it notifies the user through the
+     * provided interaction hook.
+     *
+     * @param hook     The interaction hook used to send a final notification or update regarding
+     *                 the schedule setup.
+     * @param channel  The text channel where the schedule embeds will be sent.
+     * @param teamId   The unique identifier of the team whose schedule is being set up.
+     * @param sportId  The unique identifier of the sport associated with the team.
+     */
+    private void setupChannel(InteractionHook hook, TextChannel channel, long teamId, long sportId) {
+        // get the schedule for the team
+        var embeds = buildScheduleEmbed((int) teamId, String.valueOf(sportId));
+
+        // send the embeds one by one, synchronously
+        new Thread(() -> {
+            for (MessageEmbed embed : embeds) {
+                channel.sendMessageEmbeds(embed).complete();
+            }
+
+            hook.editOriginal("Schedule set up!").queue();
+
+            // exit thread
+            Thread.currentThread().interrupt();
+        }, "Schedule").start();
+    }
+
+    /**
+     * Constructs a list of message embeds representing the schedule of games for a specific team
+     * in a given sport. The schedule is grouped into categories (e.g., Spring Training, Regular
+     * Season) and organized by series and month. Each embed provides detailed information about
+     * the games, including results, series records, and monthly schedules.
+     *
+     * @param teamId The unique identifier of the team whose schedule is being retrieved and embedded.
+     * @param sportId The unique identifier of the sport associated with the team.
+     * @return A list of MessageEmbed objects containing the structured schedule information
+     *         for the specified team and sport.
+     */
     public List<MessageEmbed> buildScheduleEmbed(int teamId, String sportId) {
         List<MLBAPIUtil.Game> schedule = MLBAPIUtil.getSchedule(teamId, sportId);
 
@@ -271,6 +291,13 @@ public class ScheduleCommand extends SlashCommand {
             EmbedBuilder monthEmbed = new EmbedBuilder()
                 .setTitle("%s".formatted(month));
 
+            if (month.equals("April") && hadMarch) {
+                monthEmbed.setTitle("March/April");
+            }
+            if (month.equals("September") && hadOctober) {
+                monthEmbed.setTitle("September/October");
+            }
+
             List<String> monthGames = new ArrayList<>();
             for (Series s : seriesByMonth.get(month)) {
                 monthGames.add("");
@@ -283,11 +310,13 @@ public class ScheduleCommand extends SlashCommand {
             embeds.add(monthEmbed.build());
         }
 
-        int totalDescription = 0;
-        for (MessageEmbed embed : embeds) {
-            totalDescription += embed.getDescription().length();
-        }
-        LoggerFactory.getLogger(ScheduleCommand.class).info("Total description length: %d".formatted(totalDescription));
+        // sort embed titles by sortingKey
+        String[] sortingKeyImproved = {"Spring Training", "March/April", "April", "May", "June", "July", "August", "September", "September/October", "Post-Season"};
+        embeds.sort((a, b) -> {
+            int aIndex = Arrays.asList(sortingKeyImproved).indexOf(a.getTitle());
+            int bIndex = Arrays.asList(sortingKeyImproved).indexOf(b.getTitle());
+            return Integer.compare(aIndex, bIndex);
+        });
 
         return embeds;
     }
@@ -304,7 +333,7 @@ public class ScheduleCommand extends SlashCommand {
             gameNumber > 0 ? "%s |".formatted(gameNumber) : "",
             game.gameDate().atZoneSimilarLocal(ZoneId.of("America/New_York")).format(formatter),
             (teamIsHome ? "vs" : "@"),
-            TeamEmoji.fromClubName((teamIsHome ? game.away() : game.home()).clubName())
+            TeamEmoji.fromTeamId((teamIsHome ? game.away() : game.home()).id())
         );
 
         // Check if the game is final.
