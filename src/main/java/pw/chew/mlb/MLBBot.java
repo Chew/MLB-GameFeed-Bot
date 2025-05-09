@@ -78,6 +78,7 @@ public class MLBBot {
         // Register JDA
         jda = JDABuilder.createDefault(prop.getProperty("token"))
             .setStatus(OnlineStatus.ONLINE)
+            .enableCache(CacheFlag.SCHEDULED_EVENTS)
             .setActivity(Activity.playing("Booting..."))
             .addEventListeners(
                 waiter, commandClient // JDA-Chewtils stuff
