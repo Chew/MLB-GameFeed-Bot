@@ -21,6 +21,7 @@ import org.hibernate.boot.MetadataSources;
 import org.hibernate.boot.registry.StandardServiceRegistry;
 import org.hibernate.boot.registry.StandardServiceRegistryBuilder;
 import pw.chew.mlb.models.Channel;
+import pw.chew.mlb.models.Server;
 
 import java.io.File;
 
@@ -36,6 +37,7 @@ public class DatabaseHelper {
             sessionFactory = new MetadataSources(registry)
                 // MLB Bot - Change to channel
                 .addAnnotatedClass(Channel.class)
+                .addAnnotatedClass(Server.class)
                 .buildMetadata()
                 .buildSessionFactory();
         } catch (Exception e) {

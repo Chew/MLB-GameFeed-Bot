@@ -4,6 +4,7 @@ import com.jagrosh.jdautilities.command.SlashCommand;
 import com.jagrosh.jdautilities.command.SlashCommandEvent;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.interactions.DiscordLocale;
+import net.dv8tion.jda.api.interactions.InteractionContextType;
 import net.dv8tion.jda.api.interactions.commands.OptionType;
 import net.dv8tion.jda.api.interactions.commands.build.OptionData;
 import pw.chew.mlb.util.MLBAPIUtil;
@@ -18,7 +19,7 @@ public class StandingsCommand extends SlashCommand {
     public StandingsCommand() {
         this.name = "standings";
         this.help = "Get the current standings.";
-        this.guildOnly = false;
+        this.contexts = new InteractionContextType[]{InteractionContextType.GUILD, InteractionContextType.BOT_DM, InteractionContextType.PRIVATE_CHANNEL};
         this.options = List.of(
             new OptionData(OptionType.STRING, "division", "Select a division to view standings for!", true)
                 // hardcode MLB for now. eventually milb will be added
@@ -29,8 +30,6 @@ public class StandingsCommand extends SlashCommand {
                 .addChoice("NL Central", "National League Central")
                 .addChoice("NL West", "National League West")
         );
-
-        // TODO: Future, make this installable in user contexts
 
         this.descriptionLocalization = Map.of(
             DiscordLocale.ENGLISH_US, "Get the current standings.",

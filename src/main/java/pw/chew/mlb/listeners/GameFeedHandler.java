@@ -5,6 +5,8 @@ import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.Permission;
 import net.dv8tion.jda.api.entities.Guild;
 import net.dv8tion.jda.api.entities.MessageEmbed;
+import net.dv8tion.jda.api.entities.ScheduledEvent;
+import net.dv8tion.jda.api.entities.User;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildChannel;
 import net.dv8tion.jda.api.entities.channel.middleman.GuildMessageChannel;
 import net.dv8tion.jda.api.exceptions.InsufficientPermissionException;
@@ -254,7 +256,7 @@ public class GameFeedHandler {
                 return;
             }
 
-            if (recentState.isSuspended()) {
+            if (recentState.isSuspended() || recentState.isPostponed()) {
                 endGame(gamePk, recentState, "\nUnfortunately, this game has been suspended. It will resume at a later time.");
                 return;
             }
@@ -569,10 +571,34 @@ public class GameFeedHandler {
                     ## Final Scorecard
                     %s
                     """.formatted(currentState.summary(), currentState.decisions(), scorecard))
-                    .setActionRow(Button.link("https://mlb.chew.pw/game/" + gamePk, "View Game"))
+                    .setActionRow(Button.primary("gameinfo:send:%s".formatted(currentState.gamePk()), "View Game Info"))
                     .queue();
             } catch (InsufficientPermissionException ignored) {
                 logger.debug("Insufficient permissions to send message to channel " + game.channelId());
+            }
+
+            // Check for scheduled game and end it, game is over
+            List<ScheduledEvent> events = channel.getGuild().getScheduledEvents();
+            for (ScheduledEvent event : events) {
+                User creator = event.getCreator();
+                // If no creator, skip
+                if (creator == null) continue;
+                // If not us, skip
+                if (!creator.getId().equals(jda.getSelfUser().getId())) continue;
+
+                // Get description
+                String description = event.getDescription();
+                // If no description, skip
+                if (description == null) continue;
+                // Game link is at very end
+                String id = description.split("/")[description.split("/").length - 1];
+
+                // If we can't do anything, skip
+                if (!channel.getGuild().getSelfMember().hasPermission(Permission.MANAGE_EVENTS)) continue;
+
+                if (id.equals(gamePk)) {
+                    event.delete().queue();
+                }
             }
         }
 

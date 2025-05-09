@@ -51,44 +51,48 @@ public class ChannelConfig {
     public static ChannelConfig retrieveChannel(String channelId, boolean createIfNotExists) {
         long id = Long.parseLong(channelId);
         var session = DatabaseHelper.getSessionFactory().openSession();
-        Channel server = session.find(Channel.class, id);
-        if (server == null && !createIfNotExists) {
+        Channel channel = session.find(Channel.class, id);
+        if (channel == null && !createIfNotExists) {
             return null;
         }
-        if (server == null) {
+        if (channel == null) {
             Transaction trans = session.beginTransaction();
-            server = new Channel();
-            server.setId(id);
-            session.save(server);
+            channel = new Channel();
+            channel.setId(id);
+            session.save(channel);
             trans.commit();
         }
         session.close();
-        ChannelConfig settings = new ChannelConfig(server);
+        ChannelConfig settings = new ChannelConfig(channel);
         cache.put(channelId, settings);
-        LoggerFactory.getLogger(ChannelConfig.class).debug("Saving " + id + " to channel cache");
+        LoggerFactory.getLogger(ChannelConfig.class).debug("Saving {} to channel cache", id);
         return settings;
     }
 
-    public static ChannelConfig retrieveChannel(String channelId) {
-        return retrieveChannel(channelId, false);
+    /**
+     * Whether this is the default configuration.
+     *
+     * @return whether this is the default configuration
+     */
+    public boolean isDefault() {
+        return data.getGameAdvisories() &&
+            data.getInPlayDelay() == 13 &&
+            data.getNoPlayDelay() == 18 &&
+            !data.getOnlyScoringPlays();
     }
 
-    public void update(String key, boolean val) {
-        data.setBoolean(key, val);
-    }
-
-    public void update(String key, int val) {
-        data.setInt(key, val);
+    public Channel getChannel() {
+        return data;
     }
 
     public void saveData() {
         var session = DatabaseHelper.getSessionFactory().openSession();
-        session.beginTransaction();
+        Transaction trans = session.beginTransaction();
         session.update(data);
-        session.getTransaction().commit();
+        trans.commit();
         session.close();
         cache.put(getId(), new ChannelConfig(data));
-        LoggerFactory.getLogger(ChannelConfig.class).debug("Saved " + getId() + " to database, and updating cache");
+        LoggerFactory.getLogger(ChannelConfig.class).debug("Saved {} to database, and updating cache", getId());
     }
 
     public String getId() {
