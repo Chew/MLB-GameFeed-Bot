@@ -7,6 +7,7 @@ import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
 import net.dv8tion.jda.api.OnlineStatus;
 import net.dv8tion.jda.api.entities.Activity;
+import net.dv8tion.jda.api.utils.cache.CacheFlag;
 import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,6 +78,7 @@ public class MLBBot {
         // Register JDA
         jda = JDABuilder.createDefault(prop.getProperty("token"))
             .setStatus(OnlineStatus.ONLINE)
+            .enableCache(CacheFlag.SCHEDULED_EVENTS)
             .setActivity(Activity.playing("Booting..."))
             .addEventListeners(
                 waiter, commandClient // JDA-Chewtils stuff
