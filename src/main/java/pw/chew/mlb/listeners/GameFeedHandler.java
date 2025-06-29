@@ -192,7 +192,7 @@ public class GameFeedHandler {
      * @param gamePk The gamePk of the game to run.
      */
     private static void runGame(String gamePk) {
-        logger.debug("Starting game with gamePk: " + gamePk);
+        logger.debug("Starting game with gamePk: {}", gamePk);
 
         if (gamePk.isEmpty()) {
             return;
@@ -269,7 +269,7 @@ public class GameFeedHandler {
 
             // Check for new changes in the description
             if (recentState.atBatIndex() >= 0 && !recentState.currentPlayDescription().equals(currentState.currentPlayDescription())) {
-                logger.debug("New play description for gamePk " + gamePk + ": " + recentState.currentPlayDescription());
+                logger.debug("New play description for gamePk {}: {}", gamePk, recentState.currentPlayDescription());
 
                 boolean scoringPlay = recentState.home().runs() != currentState.home().runs() || recentState.away().runs() != currentState.away().runs();
                 boolean hasOut = recentState.outs() != currentState.outs() && recentState.outs() > 0;
@@ -367,9 +367,21 @@ public class GameFeedHandler {
             if (!currentState.inningState().equals(recentState.inningState())) {
                 // Ignore if the state is "Middle" or "End"
                 if (!recentState.inningState().equals("Middle") && !recentState.inningState().equals("End")) {
+                    String upToBat = """
+                        Next up: %s
+                        On deck: %s
+                        In the hole: %s
+                        """
+                        .formatted(
+                            currentState.offenseBatter(), currentState.onDeck(), currentState.inTheHole()
+                        );
+
                     EmbedBuilder inningEmbed = new EmbedBuilder()
                         .setTitle("Inning State Updated")
-                        .setDescription(recentState.inningState() + " of the " + recentState.inningOrdinal());
+                        .setDescription(
+                            recentState.inningState() + " of the " + recentState.inningOrdinal()
+                             + "\n\n" + upToBat
+                        );
 
                     sendMessages(inningEmbed.build(), gamePk);
                 }
